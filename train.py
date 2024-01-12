@@ -76,7 +76,6 @@ def main(args):
     is_bcos = (args.model_backbone == "bcos")
     is_xdnn = (args.model_backbone == "xdnn")
     is_vanilla = (args.model_backbone == "vanilla")
-        
 
     if is_bcos:
         model = hubconf.resnet50(pretrained=True)
