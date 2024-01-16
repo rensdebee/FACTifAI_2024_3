@@ -92,7 +92,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             return attributions / attr_max
         return (attributions - attr_min) / (attr_max - attr_min)
 
-    def visualize(self, binarized_attributions, bb_coordinates, image=None):
+    def visualize(self, binarized_attributions, bb_coordinates, image=None, pred=None):
         """
         Function for visualizing different threshold methods for the IoU score
         Takes:
@@ -120,7 +120,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         # If og image is given plot it in first subplot
         if image is not None:
             self.axs[self.j][0].imshow(torch.movedim(image[:3, :, :], 0, -1).cpu())
-            self.axs[self.j][0].set_title("Original Image")
+            self.axs[self.j][0].set_title(f"Original Image, class: {pred}")
 
         # Plot attirubtions in first or second plot, depending on if an
         # image is given
@@ -177,21 +177,23 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
                 cmap=dark_red_cmap,
             )
             self.axs[self.j][i + 1].set_title(
-                f"{method}, Threshold: {iou_threshold:.2f}, IoU: {iou:.2f}"
+                f"{method}, Thr: {iou_threshold:.2f}, IoU: {iou:.2f}"
             )
 
         # Add boundingbox to all subplots
         for ax in self.axs[self.j]:
-            ax.add_patch(
-                patches.Rectangle(
-                    (xmin, ymin),
-                    xmax - xmin,
-                    ymax - ymin,
-                    fc="none",
-                    ec="royalblue",
-                    lw=2,
+            for coords in bb_coordinates:
+                xmin, ymin, xmax, ymax = coords
+                ax.add_patch(
+                    patches.Rectangle(
+                        (xmin, ymin),
+                        xmax - xmin,
+                        ymax - ymin,
+                        fc="none",
+                        ec="royalblue",
+                        lw=2,
+                    )
                 )
-            )
 
         # Increase count of images being visualized
         self.j += 1
@@ -203,7 +205,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             plt.savefig("./methods_comparions.png")
             self.visualize_flag = False
 
-    def update(self, attributions, bb_coordinates, image=None):
+    def update(self, attributions, bb_coordinates, image=None, pred=None):
         """
         Function to update the IoU score class with IoU score of new image.
         Takes:
@@ -231,7 +233,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
 
         # If first couple of images and visualize flag is true visualize different methods
         if self.visualize_flag:
-            self.visualize(binarized_attributions, bb_coordinates, image)
+            self.visualize(binarized_attributions, bb_coordinates, image, pred)
 
         # Calculate amount of pixels inside boundingbox and higher then threshold
         intersection_area = len(
