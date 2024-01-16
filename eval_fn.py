@@ -245,11 +245,11 @@ def evaluation_function(
     return metric_vals
 
 
-# if __name__ == "__main__":
-#     evaluation_function(
-#         "bcos",
-#         "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput\model_checkpoint_f1_best.pt",
-#         "Energy",
-#         "Input",
-#         "BCos",
-#     )
+if __name__ == "__main__":
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7798_0.6886_0.0084_48.pt",
+        "Energy",
+        "Input",
+        "BCos",
+    )
