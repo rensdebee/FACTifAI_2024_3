@@ -4,6 +4,8 @@ import statistics
 import torchmetrics.classification
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.colors as mcolors
+import numpy as np
 
 
 class EnergyPointingGameBase(torchmetrics.Metric):
@@ -70,9 +72,18 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         self.min_box_size = min_box_size
         self.max_box_size = max_box_size
         self.visualize_flag = vis_flag
+        # Create subplots and figure for the amount of images to visaluze
+        self.amount_img = 10
+        if self.visualize_flag:
+            # Create figure
+            self.fig, self.axs = plt.subplots(
+                self.amount_img, 6, figsize=(20, 5 * self.amount_img)
+            )
+        # Set index of image visualized count to 0
+        self.j = 0
 
     def binarize(self, attributions):
-        # Also normalization
+        # Normalize attributions
         attr_max = attributions.max()
         attr_min = attributions.min()
         if attr_max == 0:
@@ -81,36 +92,67 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             return attributions / attr_max
         return (attributions - attr_min) / (attr_max - attr_min)
 
-    def visualize(self, binarized_attributions, bb_coordinates, image):
+    def visualize(self, binarized_attributions, bb_coordinates, image=None):
+        """
+        Function for visualizing different threshold methods for the IoU score
+        Takes:
+        binarized_attributions: The binarized atribution map
+        bb_coordinates: list of list of coordinates
+        image: original RGB images (HxWxC)
+        """
+        # Create custom color map
+        cdict = {
+            "red": [(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)],
+            "green": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
+            "blue": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
+        }
+
+        dark_red_cmap = mcolors.LinearSegmentedColormap("DarkRed", cdict)
+
+        # Get the boundingbox mask
         bb_mask = torch.zeros_like(binarized_attributions, dtype=torch.long)
+
+        # Get coordinates of boundingbox
         for coords in bb_coordinates:
             xmin, ymin, xmax, ymax = coords
             bb_mask[ymin:ymax, xmin:xmax] = 1
-        bb_size = len(torch.where(bb_mask == 1)[0])
 
-        fig, axs = plt.subplots(1, 6, figsize=(20, 5))
+        # If og image is given plot it in first subplot
         if image is not None:
-            axs[0].imshow(torch.movedim(image[:3, :, :], 0, -1).cpu())
-            axs[0].set_title("Original Image")
+            self.axs[self.j][0].imshow(torch.movedim(image[:3, :, :], 0, -1).cpu())
+            self.axs[self.j][0].set_title("Original Image")
 
+        # Plot attirubtions in first or second plot, depending on if an
+        # image is given
         i = 0
         i = i + 1 if image is not None else i
-        axs[i].imshow(
+        self.axs[self.j][i].imshow(
             binarized_attributions.cpu(),
-            cmap="Reds",
+            cmap=dark_red_cmap,
         )
-        axs[i].set_title("Normalized atribution map")
+        self.axs[self.j][i].set_title("Normalized atribution map")
 
-        methods = ["mean", "median", "mode", "fixed"]
+        # histogram, bin_edges = np.histogram(binarized_attributions.cpu())
+
+        # axs[i + 1].plot(bin_edges[0:-1], histogram)
+        # axs[i + 1].set_title("Value histogram ")
+
+        # Loop over different threshold methods
+        methods = ["mean", "top 5%", "median", "fixed"]
+        unique_values = len(binarized_attributions.flatten().unique())
         for i, method in enumerate(methods):
+            # Set threshold
             if method == "mean":
                 iou_threshold = binarized_attributions.mean()
-            elif method == "mode":
-                iou_threshold = binarized_attributions.flatten().mode()[0]
-            elif method == "mean":
-                iou_threshold = binarized_attributions.median()
+            elif method == "top 5%":
+                iou_threshold = binarized_attributions.flatten().unique()[
+                    -int(unique_values * 0.05)
+                ]
+            elif method == "median":
+                iou_threshold = binarized_attributions.flatten().unique().median()
             elif method == "fixed":
                 iou_threshold = 0.5
+            # Calculate IoU
             intersection_area = len(
                 torch.where((binarized_attributions > iou_threshold) & (bb_mask == 1))[
                     0
@@ -128,16 +170,18 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             else:
                 iou = intersection_area / union_area
 
+            # Plot binarized image with IoU in title
             i = i + 1 if image is not None else i
-            axs[i + 1].imshow(
-                torch.where(binarized_attributions > self.iou_threshold, 1, 0).cpu(),
-                cmap="Reds",
+            self.axs[self.j][i + 1].imshow(
+                torch.where(binarized_attributions > iou_threshold, 1, 0).cpu(),
+                cmap=dark_red_cmap,
             )
-            axs[i + 1].set_title(
-                f"{method}, Threshold: {self.iou_threshold:.2f}, IoU: {iou:.4f}"
+            self.axs[self.j][i + 1].set_title(
+                f"{method}, Threshold: {iou_threshold:.2f}, IoU: {iou:.2f}"
             )
 
-        for ax in axs:
+        # Add boundingbox to all subplots
+        for ax in self.axs[self.j]:
             ax.add_patch(
                 patches.Rectangle(
                     (xmin, ymin),
@@ -148,33 +192,55 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
                     lw=2,
                 )
             )
-        fig.tight_layout()
-        fig.suptitle("Comparision of threshold method for IoU score:    ")
-        plt.savefig("./methods_comparions.png")
+
+        # Increase count of images being visualized
+        self.j += 1
+        # If amount neede reached stop visualizing
+        if self.j >= self.amount_img:
+            # Save figure
+            self.fig.tight_layout()
+            self.fig.suptitle("Comparision of threshold method for IoU score:    ")
+            plt.savefig("./methods_comparions.png")
+            self.visualize_flag = False
 
     def update(self, attributions, bb_coordinates, image=None):
+        """
+        Function to update the IoU score class with IoU score of new image.
+        Takes:
+        attributions: attribution map of image
+        bb_coordinates: bounding box coordinates list
+        image: Original image for visualizing.
+        """
+        # Set all negative attributions to 0
         positive_attributions = attributions.clamp(min=0)
+        # Get the boundingbox mask
         bb_mask = torch.zeros_like(positive_attributions, dtype=torch.long)
         for coords in bb_coordinates:
             xmin, ymin, xmax, ymax = coords
             bb_mask[ymin:ymax, xmin:xmax] = 1
+        # Count the amount of pixels inside the boundingbox
         bb_size = len(torch.where(bb_mask == 1)[0])
+
         if self.min_box_size is not None and bb_size < self.min_box_size:
             return
         if self.max_box_size is not None and bb_size >= self.max_box_size:
             return
 
+        # Normalize the positive attributions
         binarized_attributions = self.binarize(positive_attributions)
-        self.iou_threshold = binarized_attributions.median()
+
+        # If first couple of images and visualize flag is true visualize different methods
         if self.visualize_flag:
             self.visualize(binarized_attributions, bb_coordinates, image)
-            self.visualize_flag = False
 
+        # Calculate amount of pixels inside boundingbox and higher then threshold
         intersection_area = len(
             torch.where((binarized_attributions > self.iou_threshold) & (bb_mask == 1))[
                 0
             ]
         )
+
+        # Calculate number of pixels higher then threshold plus inside boundingbox
         union_area = (
             len(torch.where(binarized_attributions > self.iou_threshold)[0])
             + len(torch.where(bb_mask == 1)[0])
@@ -183,6 +249,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         assert intersection_area >= 0
         assert union_area >= 0
 
+        # Calculate and store IoU score
         if union_area == 0:
             iou = 0.0
             self.fractions.append(torch.tensor(iou))
