@@ -1,19 +1,18 @@
-name: FACTifAI
+name: model_guidance
 channels:
   - pytorch
   - nvidia
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10.5
-  - pip=22.2.2
+  - python=3.11.5
+  - pip=23.3.1
   - pytorch-cuda=11.8
   - pytorch=2.1.0
   - torchvision=0.16.0
   - torchaudio=2.1.0
+  - tensorboard
   - pip:
-    - pytorch-lightning==2.1.0
-    - tensorboard==2.14.1
     - tabulate>=0.8.9
     - tqdm>=4.62.3
     - pillow>=8.0.1
@@ -24,3 +23,5 @@ dependencies:
     - ipywidgets>=7.6.5
     - captum
     - pycocotools
+    - torchmetrics
+    - pytorch-lightning
