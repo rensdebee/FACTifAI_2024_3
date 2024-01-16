@@ -2,7 +2,6 @@ import torch
 
 
 class ResNetModelActivator(torch.nn.Module):
-
     def __init__(self, model, layer=None, is_bcos=False):
         super().__init__()
         self.model = model
@@ -13,7 +12,7 @@ class ResNetModelActivator(torch.nn.Module):
                 self.layer_list = list(self.model[0].named_children())
             else:
                 self.layer_list = list(self.model.named_children())
-            assert self.layer >= 0 and self.layer < len(self.layer_list)-1
+            assert self.layer >= 0 and self.layer < len(self.layer_list) - 1
 
     def __call__(self, img):
         if self.layer is None:
@@ -22,14 +21,14 @@ class ResNetModelActivator(torch.nn.Module):
         else:
             acts = img
             if not self.is_bcos:
-                for lidx in range(len(self.layer_list)-1):
+                for lidx in range(len(self.layer_list) - 1):
                     acts = self.layer_list[lidx][1](acts)
                     if lidx == self.layer:
                         feature = acts
                 acts = acts.flatten(1)
                 output = self.layer_list[-1][1](acts)
             else:
-                for lidx in range(len(self.layer_list)-2):
+                for lidx in range(len(self.layer_list) - 2):
                     acts = self.layer_list[lidx][1](acts)
                     if lidx == self.layer:
                         feature = acts

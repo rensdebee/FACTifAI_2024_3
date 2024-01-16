@@ -61,7 +61,7 @@ def eval_model(
                     )
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
                     bb_metric.update(attributions, bb_list)
-                    iou_metric.update(attributions, bb_list, image)
+                    iou_metric.update(attributions, bb_list, image, pred)
 
     metric_vals = f1_metric.compute()
     if attributor:

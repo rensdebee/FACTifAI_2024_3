@@ -57,7 +57,7 @@ def eval_model(
                     )
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
                     bb_metric.update(attributions, bb_list)
-                    iou_metric.update(attributions, bb_list, image)
+                    iou_metric.update(attributions, bb_list, image, pred)
 
     metric_vals = f1_metric.compute()
     if attributor:
@@ -243,3 +243,13 @@ def evaluation_function(
         1,
     )
     return metric_vals
+
+
+# if __name__ == "__main__":
+#     evaluation_function(
+#         "bcos",
+#         "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput\model_checkpoint_f1_best.pt",
+#         "Energy",
+#         "Input",
+#         "BCos",
+#     )
