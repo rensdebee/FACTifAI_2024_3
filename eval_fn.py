@@ -1,6 +1,5 @@
 import torch
 import os
-import argparse
 import torchvision
 from tqdm import tqdm
 import datasets
@@ -153,7 +152,7 @@ def evaluation_function(
 
     writer = None
 
-    # Add transform for BCOS model ekse normalize
+    # Add transform for BCOS model else normalize
     if is_bcos:
         transformer = bcos.data.transforms.AddInverse(dim=0)
     else:
@@ -251,7 +250,6 @@ def evaluation_function(
         os.makedirs(log_path)
 
     if pareto:
-
         if attribution_method:
             epoch = model_path.split("_")[-1].split(".")[0]
             npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
@@ -259,14 +257,10 @@ def evaluation_function(
             npz_name = f"{dataset}_{split}_{model_backbone}_Pareto_{epoch}.npz"
 
     else:
-
         if attribution_method:
-            npz_name = (
-                f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}.npz"
-            )
+            npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}.npz"
         else:
             npz_name = f"{dataset}_{split}_{model_backbone}.npz"
-
 
     npz_path = os.path.join(log_path, npz_name)
 
@@ -283,7 +277,7 @@ if __name__ == "__main__":
         "Input",
         "BCos",
         pareto=True,
-        log_path="metrics_per_model_bcos/"
+        log_path="metrics_per_model_bcos/",
     )
     evaluation_function(
         "bcos",
@@ -292,7 +286,7 @@ if __name__ == "__main__":
         "Input",
         "BCos",
         pareto=True,
-        log_path="metrics_per_model_bcos/"
+        log_path="metrics_per_model_bcos/",
     )
     evaluation_function(
         "bcos",
@@ -301,7 +295,7 @@ if __name__ == "__main__":
         "Input",
         "BCos",
         pareto=True,
-        log_path="metrics_per_model_bcos/"
+        log_path="metrics_per_model_bcos/",
     )
     evaluation_function(
         "bcos",
@@ -310,7 +304,7 @@ if __name__ == "__main__":
         "Input",
         "BCos",
         pareto=True,
-        log_path="metrics_per_model_bcos/"
+        log_path="metrics_per_model_bcos/",
     )
     evaluation_function(
         "bcos",
@@ -319,7 +313,5 @@ if __name__ == "__main__":
         "Input",
         "BCos",
         pareto=True,
-        log_path="metrics_per_model_bcos/"
+        log_path="metrics_per_model_bcos/",
     )
-
-
