@@ -171,4 +171,5 @@ annotations/
 datasets/*.pt
 *.tar 
 *.pth
+FT/
 

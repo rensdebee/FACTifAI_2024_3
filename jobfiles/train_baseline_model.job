@@ -15,4 +15,4 @@ source activate FACTifAI
 
 echo "python train.py --model_backbone vanilla --dataset VOC2007 --learning_rate 1e-5 --train_batch_size 64 --total_epochs 300 --save_path ./BASE"
 
-python train.py --model_backbone vanilla --dataset VOC2007 --learning_rate 1e-5 --train_batch_size 64 --total_epochs 300 --save_path ./BASE
+python train.py --model_backbone vanilla --dataset VOC2007 --learning_rate 1e-5 --train_batch_size 64 --total_epochs 300 --save_path ./BASE --log_path base_logs
