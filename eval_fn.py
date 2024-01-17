@@ -1,6 +1,5 @@
 import torch
 import os
-import argparse
 import torchvision
 from tqdm import tqdm
 import datasets
@@ -155,7 +154,7 @@ def evaluation_function(
 
     writer = None
 
-    # Add transform for BCOS model ekse normalize
+    # Add transform for BCOS model else normalize
     if is_bcos:
         transformer = bcos.data.transforms.AddInverse(dim=0)
     else:
@@ -253,7 +252,6 @@ def evaluation_function(
         os.makedirs(log_path)
 
     if pareto:
-
         if attribution_method:
             epoch = model_path.split("_")[-1].split(".")[0]
             npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
@@ -269,14 +267,10 @@ def evaluation_function(
             npz_name = f"{dataset}_{split}_{model_backbone}_Baseline.npz"
 
     else:
-
         if attribution_method:
-            npz_name = (
-                f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}.npz"
-            )
+            npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}.npz"
         else:
             npz_name = f"{dataset}_{split}_{model_backbone}.npz"
-
 
     npz_path = os.path.join(log_path, npz_name)
 
@@ -285,6 +279,7 @@ def evaluation_function(
     return metric_vals
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     # # Root directory
     # root_dir = "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/"
 
@@ -333,3 +328,50 @@ if __name__ == "__main__":
                         pareto=False,
                         baseline=True,
                         log_path="metrics_per_model_vanilla/")
+=======
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7828_0.6834_0.0083_47.pt",
+        "Energy",
+        "Input",
+        "BCos",
+        pareto=True,
+        log_path="metrics_per_model_bcos/",
+    )
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7828_0.6834_0.0083_47.pt",
+        "Energy",
+        "Input",
+        "BCos",
+        pareto=True,
+        log_path="metrics_per_model_bcos/",
+    )
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7883_0.6620_0.0096_33.pt",
+        "Energy",
+        "Input",
+        "BCos",
+        pareto=True,
+        log_path="metrics_per_model_bcos/",
+    )
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7927_0.6172_0.0089_15.pt",
+        "Energy",
+        "Input",
+        "BCos",
+        pareto=True,
+        log_path="metrics_per_model_bcos/",
+    )
+    evaluation_function(
+        "bcos",
+        "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/pareto_front/model_checkpoint_pareto_0.7980_0.5620_0.0085_7.pt",
+        "Energy",
+        "Input",
+        "BCos",
+        pareto=True,
+        log_path="metrics_per_model_bcos/",
+    )
+>>>>>>> 940485ae5f21c2a93dfc64e98a2316cfb56cf0af
