@@ -4,7 +4,10 @@ import argparse
 import os
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
+import xml.etree.ElementTree as ET
+
 
 target_dict = {
     "background": 0,
@@ -79,6 +82,68 @@ def encode_segmap(mask):
     label_mask = torch.tensor(label_mask.astype(int))
     return label_mask, unique_labels
 
+# def get_bounding_boxes(label_mask, unique_labels):
+#     indxs = torch.where(unique_labels == 1)[0]
+#     bbxs = []
+#     for label in indxs:
+#         indices = torch.where(label_mask == label + 1)
+#         min_x = torch.min(indices[1])
+#         max_x = torch.max(indices[1])
+#         min_y = torch.min(indices[0])
+#         max_y = torch.max(indices[0])
+#         bbxs.append([label, min_x, min_y, max_x, max_y])
+#     return bbxs
+
+# def parse_xml_annotation(xml_file_path):
+#     tree = ET.parse(xml_file_path)
+#     root = tree.getroot()
+
+#     bounding_boxes = []
+#     for obj in root.findall('object'):
+#         class_name = obj.find('name').text
+#         class_idx = target_dict[class_name]
+#         bbox = obj.find('bndbox')
+#         xmin = int(bbox.find('xmin').text)
+#         ymin = int(bbox.find('ymin').text)
+#         xmax = int(bbox.find('xmax').text)
+#         ymax = int(bbox.find('ymax').text)
+        
+#         annotation = [class_idx, xmin, ymin, xmax, ymax]
+#         bounding_boxes.append(annotation)
+
+
+#     return bounding_boxes
+
+def parse_xml_annotation(xml_file_path, target_size=224):
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
+
+    rescaled_annotations = []
+    size = root.find('size')
+    image_width = int(size.find('width').text)
+    image_height = int(size.find('height').text)
+    wscale = target_size / image_width
+    hscale = target_size / image_height
+
+    for obj in root.findall('object'):
+        class_name = obj.find('name').text
+        class_idx = target_dict[class_name]
+        bbox = obj.find('bndbox')
+        xmin = int(bbox.find('xmin').text)
+        ymin = int(bbox.find('ymin').text)
+        xmax = int(bbox.find('xmax').text)
+        ymax = int(bbox.find('ymax').text)
+
+        new_xmin = int(min(max(xmin * wscale, 0), target_size - 1))
+        new_xmax = int(min(max(xmax * wscale, 0), target_size - 1))
+        new_ymin = int(min(max(ymin * hscale, 0), target_size - 1))
+        new_ymax = int(min(max(ymax * hscale, 0), target_size - 1))
+
+        rescaled_annotation = [class_idx - 1, new_xmin, new_ymin, new_xmax, new_ymax]
+        rescaled_annotations.append(rescaled_annotation)
+
+    return rescaled_annotations
+
 
 def main(args):
     split = args.split
@@ -92,13 +157,6 @@ def main(args):
 
     # to be able to evaluate on all images profided in VOC
     if split == "all":
-        train = torchvision.datasets.VOCSegmentation(
-            root=args.data_root,
-            year="2007",
-            download=True,
-            image_set="train",
-            transform=transform,
-        )
         val = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
             year="2007",
@@ -113,8 +171,15 @@ def main(args):
             image_set="test",
             transform=transform,
         )
+        image_files = []
+        with open("./VOCdevkit/VOC2007/ImageSets/Segmentation/val.txt", "r") as f:
+            for line in f:
+                image_files.append(line.strip() + ".xml")
+        with open("./VOCdevkit/VOC2007/ImageSets/Segmentation/test.txt", "r") as f:
+            for line in f:
+                image_files.append(line.strip() + ".xml")
 
-        data = torch.utils.data.ConcatDataset([train, val, test])
+        data = torch.utils.data.ConcatDataset([val, test])
     else:
         data = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
@@ -135,7 +200,11 @@ def main(args):
     images = torch.zeros(len(data), 3, 224, 224)
     label_masks = torch.zeros(len(data), 1, 224, 224)
     labels = torch.zeros((len(data), 20))
-    for i, (image, segmentation_info) in tqdm(enumerate(data), total=len(data)):
+    bounding_boxes = [[] for _ in range(len(data))]
+    path_root = "./VOCdevkit/VOC2007/Annotations/"
+    
+    for i, (d, image_file) in enumerate(zip(tqdm(data), image_files)):
+        image, segmentation_info = d
         segmentation = np.asarray(
             segmentation_info.resize((224, 224)).convert(mode="RGB")
         )
@@ -144,8 +213,21 @@ def main(args):
         images[i] = image
         label_masks[i] = label_mask
         labels[i] = unique_labels
+        
+        bounding_boxes[i] = parse_xml_annotation(path_root + image_file)
+        
+        # plt.imshow(image.permute(1, 2, 0).numpy())
+        # for (_, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
+        #     rect = patches.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
+        #                             linewidth=1, edgecolor='r', facecolor='none')
+        #     plt.gca().add_patch(rect)
+        # plt.savefig(f"./temp_imgs/{image_file[:-4]}.png")
+        # plt.clf()
+        # if i > 5:
+        #     exit()
 
-    dataset = {"data": images, "labels": labels, "mask": label_masks}
+    dataset = {"data": images, "labels": labels, "mask": label_masks, "bbs": bounding_boxes}
+    print(f"saving {len(data)} images")
 
     os.makedirs(args.save_path, exist_ok=True)
     torch.save(dataset, os.path.join(args.save_path, split + "_segment.pt"))
