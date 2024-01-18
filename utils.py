@@ -325,7 +325,7 @@ def get_model(
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint["model"])
     else:
-        raise Exception("Model path must be provided for evaluations")
+        print("No model path provided using resnet baseline model")
 
     model = model.cuda()
 

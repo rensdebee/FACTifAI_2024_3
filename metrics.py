@@ -28,27 +28,16 @@ class EnergyPointingGameBase(torchmetrics.Metric):
         if len(self.defined_idxs) == 0:
             return None
         return statistics.fmean([self.fractions[idx] for idx in self.defined_idxs])
-# NEW
+
+
 class SegmentEnergyMultiple(EnergyPointingGameBase):
     def __init__(self, include_undefined=True):
         super().__init__(include_undefined=include_undefined)
-        
+
     def update(self, attributions, mask, label):
         positive_attributions = attributions.clamp(min=0)
         class_mask = torch.where(mask == label, 1, 0)[0]
         energy_inside = torch.mul(positive_attributions, class_mask).sum()
-
-        # class_mask_np = mask.cpu().numpy()
-        # unique_values, counts = np.unique(class_mask_np, return_counts=True)
-        # print()
-        # print()
-        # print(f"label: {label}" )
-        # print(class_mask.sum())
-        # print(positive_attributions.sum())
-        # print(energy_inside)
-        
-        # for value, count in zip(unique_values, counts):
-        #     print(f'Value {value}: Count {count}')
 
         energy_total = positive_attributions.sum()
         assert energy_inside >= 0, energy_inside
@@ -59,7 +48,8 @@ class SegmentEnergyMultiple(EnergyPointingGameBase):
             self.defined_idxs.append(len(self.fractions))
             # print("Segment", energy_inside / energy_total)
             self.fractions.append(energy_inside / energy_total)
-            
+
+
 class SegmentFractionMultiple(EnergyPointingGameBase):
     def __init__(self, include_undefined=True, iou_threshold=0.5):
         super().__init__(include_undefined=include_undefined)
@@ -75,12 +65,10 @@ class SegmentFractionMultiple(EnergyPointingGameBase):
             return attributions / attr_max
         return (attributions - attr_min) / (attr_max - attr_min)
 
-        
     def update(self, attributions, mask, label, bb_coordinates):
         positive_attributions = attributions.clamp(min=0)
         class_mask = torch.where(mask == label, 1, 0)[0]
         energy_inside_segm = torch.mul(positive_attributions, class_mask).sum()
-        energy_total = positive_attributions.sum()
 
         bb_mask = torch.zeros_like(positive_attributions, dtype=torch.long)
         for coords in bb_coordinates:
@@ -88,16 +76,14 @@ class SegmentFractionMultiple(EnergyPointingGameBase):
             bb_mask[ymin:ymax, xmin:xmax] = 1
 
         energy_inside_bbox = torch.mul(positive_attributions, bb_mask).sum()
-                
+
         assert energy_inside_segm >= 0, energy_inside_segm
-        if energy_total < 1e-7:
+        if energy_inside_bbox < 1e-7:
             self.fractions.append(torch.tensor(0.0))
         else:
             self.defined_idxs.append(len(self.fractions))
-            # print("fraction", (energy_inside / energy_total), iou)
+            # print("fraction", (energy_inside_segm / energy_inside_bbox))
             self.fractions.append(energy_inside_segm / energy_inside_bbox)
-            
-
 
 
 class BoundingBoxEnergyMultiple(EnergyPointingGameBase):
