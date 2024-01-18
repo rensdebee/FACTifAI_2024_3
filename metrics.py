@@ -271,7 +271,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         if self.j >= self.amount_img:
             # Save figure
             self.fig.tight_layout()
-            self.fig.suptitle("Comparision of threshold method for IoU score:    ")
+            self.fig.suptitle("Comparision of threshold method for IoU score:")
             plt.savefig("./methods_comparions.png")
             self.visualize_flag = False
 
