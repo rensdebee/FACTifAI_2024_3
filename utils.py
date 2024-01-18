@@ -13,6 +13,7 @@ import hubconf
 import attribution_methods
 import bcos.modules.bcosconv2d
 import bcos.data.transforms
+import matplotlib.colors as mcolors
 
 
 def remove_module(state_dict):
@@ -181,7 +182,15 @@ def update_val_metrics(metric_vals):
 
 
 class UnNormalize(torchvision.transforms.Normalize):
+    """
+    Undo the normalization to get back the original image. For visualization
+    """
+
     def __init__(self, mean, std, *args, **kwargs):
+        """
+        mean = mean which the images where transformed
+        std = std with which the images where transformed
+        """
         new_mean = [-m / s for m, s in zip(mean, std)]
         new_std = [1 / s for s in std]
         super().__init__(new_mean, new_std, *args, **kwargs)
@@ -191,6 +200,9 @@ class UnNormalize(torchvision.transforms.Normalize):
 
 
 def get_class_name(class_num):
+    """
+    Function to map from class number back to classname
+    """
     target_dict = {
         "aeroplane": 0,
         "bicycle": 1,
@@ -221,15 +233,22 @@ def get_class_name(class_num):
 
 
 def get_model_specs(path):
+    """
+    Function to get model specs from model path name
+    """
+    # Model options
     model_backbones = ["bcos", "xdnn", "vanilla"]
     localization_loss_fns = ["Energy", "L1", "RRR", "PPCE"]
     layers = ["Input", "Final", "Mid1", "Mid2", "Mid3"]
     attribution_methods = ["BCos", "GradCam", "IxG"]
 
+    # Check if option in model name
+    # If in name break loop and thus option is stored in variable
     for model_backbone in model_backbones:
         if model_backbone in path:
             break
 
+    # If not found set to None
     for localization_loss_fn in localization_loss_fns:
         if localization_loss_fn in path:
             break
@@ -251,8 +270,16 @@ def get_model_specs(path):
 
 
 def get_model(
-    model_path, model_backbone, localization_loss_fn, layer, attribution_method, dataset
+    model_backbone,
+    localization_loss_fn,
+    layer,
+    attribution_method,
+    dataset,
+    model_path=None,
 ):
+    """
+    Load model, attributor and transform from model specs
+    """
     # Get number of classes
     num_classes_dict = {"VOC2007": 20, "COCO2014": 80}
     num_classes = num_classes_dict[dataset]
@@ -328,6 +355,7 @@ def get_model(
     else:
         attributor = None
 
+    # Get correct transformation
     if is_bcos:
         transformer = bcos.data.transforms.AddInverse(dim=0)
     else:
@@ -336,3 +364,15 @@ def get_model(
         )
 
     return model_activator, attributor, transformer
+
+
+def get_color_map():
+    """
+    Returns used color map
+    """
+    cdict = {
+        "red": [(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)],
+        "green": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
+        "blue": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
+    }
+    return mcolors.LinearSegmentedColormap("DarkRed", cdict)
