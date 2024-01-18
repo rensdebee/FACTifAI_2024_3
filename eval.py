@@ -1,23 +1,15 @@
 import torch
 import os
-import argparse
-import torchvision
 from tqdm import tqdm
 import datasets
 import argparse
 import torch.utils.tensorboard
 import utils
-import copy
 import losses
 import metrics
-import bcos.models
-import model_activators
-import attribution_methods
-import hubconf
-import bcos
 import bcos.modules
 import bcos.data
-import fixup_resnet
+import numpy as np
 
 
 def eval_model(
@@ -29,22 +21,30 @@ def eval_model(
     loss_fn,
     writer=None,
     epoch=None,
-    args=None,
+    mode="bbs",
+    vis_flag=False,
 ):
     model.eval()
     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
     bb_metric = metrics.BoundingBoxEnergyMultiple()
-    if args is not None:
-        vis_flag = args.vis_iou_thr_methods
-    else:
-        vis_flag = False
+    seg_metric = metrics.SegmentEnergyMultiple()
+    frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
     total_loss = 0
-    for batch_idx, (test_X, test_y, test_bbs) in enumerate(tqdm(loader)):
+    for batch_idx, data in enumerate(tqdm(loader)):
+        if mode == "bbs":
+            test_X, test_y, test_bbs = data
+        elif mode == "segment":  # NEW
+            test_X, test_y, test_segment, test_bbs = data
+            test_segment = test_segment.cuda()
+        else:
+            raise NotImplementedError
+
         test_X.requires_grad = True
         test_X = test_X.cuda()
         test_y = test_y.cuda()
         logits, features = model(test_X)
+
         loss = loss_fn(logits, test_y).detach()
         total_loss += loss
         f1_metric.update(logits, test_y)
@@ -60,15 +60,41 @@ def eval_model(
                         .squeeze(0)
                     )
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
+
+                    if len(bb_list) == 0:
+                        print(pred)
+                        print(test_bbs[img_idx])
+                        print(len(bb_list))
+                        raise ValueError
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list, image, pred)
+                    if mode == "segment":
+                        seg_metric.update(
+                            attributions=attributions,
+                            mask=test_segment[img_idx],
+                            label=pred + 1,
+                        )
+                        frac_metric.update(
+                            attributions=attributions,
+                            mask=test_segment[img_idx],
+                            label=pred + 1,
+                            bb_coordinates=bb_list,
+                        )
 
     metric_vals = f1_metric.compute()
     if attributor:
         bb_metric_vals = bb_metric.compute()
         iou_metric_vals = iou_metric.compute()
+
         metric_vals["BB-Loc"] = bb_metric_vals
+        if mode == "segment":  # NEW
+            seg_bb_metric_vals = seg_metric.compute()
+            seg_bb_metric_frac = frac_metric.compute()
+            metric_vals["BB-Loc-segment"] = seg_bb_metric_vals
+            metric_vals["BB-Loc-Fraction"] = seg_bb_metric_frac
+
         metric_vals["BB-IoU"] = iou_metric_vals
+
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
     print(f"Validation Metrics: {metric_vals}")
     model.train()
@@ -84,169 +110,136 @@ def eval_model(
     return metric_vals
 
 
-def main(args):
-    # Get number of classes
-    num_classes_dict = {"VOC2007": 20, "COCO2014": 80}
-    num_classes = num_classes_dict[args.dataset]
+def evaluation_function(
+    model_path,
+    fix_layer=None,
+    pareto=False,
+    eval_batch_size=4,
+    data_path="datasets/",
+    dataset="VOC2007",
+    split="test",
+    annotated_fraction=1,
+    log_path=None,
+    mode="bbs",
+    npz=False,
+    vis_iou_thr_methods=False,
+):
+    """
+    Function which returns the metrics of a given model in model_path
+    on certain data split.
 
-    # Load correct model
-    is_bcos = args.model_backbone == "bcos"
-    is_xdnn = args.model_backbone == "xdnn"
-    is_vanilla = args.model_backbone == "vanilla"
+    Note this function does not save metrics in tensorboard log, use the
+    commandine script for that functionality.
+    """
+    (
+        model_backbone,
+        localization_loss_fn,
+        layer,
+        attribution_method,
+    ) = utils.get_model_specs(model_path)
 
-    if is_bcos:
-        model = hubconf.resnet50(pretrained=True)
-        model[0].fc = bcos.modules.bcosconv2d.BcosConv2d(
-            in_channels=model[0].fc.in_channels, out_channels=num_classes
-        )
-        layer_dict = {"Input": None, "Mid1": 3, "Mid2": 4, "Mid3": 5, "Final": 6}
-    elif is_xdnn:
-        model = fixup_resnet.xfixup_resnet50()
-        imagenet_checkpoint = torch.load(
-            os.path.join("weights/xdnn/xfixup_resnet50_model_best.pth.tar")
-        )
-        imagenet_state_dict = utils.remove_module(imagenet_checkpoint["state_dict"])
-        model.load_state_dict(imagenet_state_dict)
-        model.fc = torch.nn.Linear(
-            in_features=model.fc.in_features, out_features=num_classes
-        )
-        layer_dict = {"Input": None, "Mid1": 3, "Mid2": 4, "Mid3": 5, "Final": 6}
-    elif is_vanilla:
-        model = torchvision.models.resnet50(
-            weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V1
-        )
-        model.fc = torch.nn.Linear(
-            in_features=model.fc.in_features, out_features=num_classes
-        )
-        layer_dict = {"Input": None, "Mid1": 4, "Mid2": 5, "Mid3": 6, "Final": 7}
-    else:
-        raise NotImplementedError
+    # If no attribution method set default values
+    if not attribution_method:
+        if model_backbone == "bcos":
+            attribution_method = "BCos"
+        elif model_backbone == "vanilla":
+            attribution_method = "IxG"
 
-    # Get layer to extract atribution layers
-    layer_idx = layer_dict[args.layer]
+    # default localistion loss is energy
+    if not localization_loss_fn:
+        localization_loss_fn = "Energy"
 
-    # Load model checkpoint
-    if args.model_path is not None:
-        checkpoint = torch.load(args.model_path)
-        model.load_state_dict(checkpoint["model"])
-    else:
-        raise Exception("Model path must be provided for evaluations")
-
-    model = model.cuda()
-
-    # Create model log save path name
-    orig_name = os.path.basename(args.model_path) if args.model_path else str(None)
-
-    model_prefix = args.model_backbone
-
-    optimize_explanation_str = "evaluated"
-    optimize_explanation_str += "limited" if args.annotated_fraction < 1.0 else ""
-    optimize_explanation_str += "dilated" if args.box_dilation_percentage > 0 else ""
-    out_name = (
-        model_prefix
-        + "_"
-        + optimize_explanation_str
-        + "_attr"
-        + str(args.attribution_method)
-        + "_locloss"
-        + str(args.localization_loss_fn)
-        + "_orig"
-        + orig_name
-        + "_resnet50"
-        + "_layer"
-        + str(args.layer)
+    if fix_layer:
+        layer = fix_layer
+    print(
+        "Found model with specs: ",
+        model_backbone,
+        localization_loss_fn,
+        layer,
+        attribution_method,
+        dataset,
     )
-    if args.annotated_fraction < 1.0:
-        out_name += f"limited{args.annotated_fraction}"
-    if args.box_dilation_percentage > 0:
-        out_name += f"_dilation{args.box_dilation_percentage}"
-    if args.log_path is not None:
-        writer = torch.utils.tensorboard.SummaryWriter(
-            log_dir=os.path.join(args.log_path, args.dataset, out_name)
-        )
-    else:
-        writer = None
-
-    # Add transform for BCOS model ekse normalize
-    if is_bcos:
-        transformer = bcos.data.transforms.AddInverse(dim=0)
-    else:
-        transformer = torchvision.transforms.Normalize(
-            mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-        )
+    model_activator, eval_attributor, transformer = utils.get_model(
+        model_backbone,
+        localization_loss_fn,
+        layer,
+        attribution_method,
+        dataset,
+        model_path=model_path,
+    )
 
     # Load dataset base on --split argument
-    root = os.path.join(args.data_path, args.dataset, "processed")
+    root = os.path.join(data_path, dataset, "processed")
 
-    if args.split == "train":
+    if split == "train":
         train_data = datasets.VOCDetectParsed(
             root=root,
             image_set="train",
             transform=transformer,
-            annotated_fraction=args.annotated_fraction,
+            annotated_fraction=annotated_fraction,
         )
         loader = torch.utils.data.DataLoader(
             train_data,
-            batch_size=args.eval_batch_size,
+            batch_size=eval_batch_size,
             shuffle=True,
-            num_workers=4,
+            num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(train_data) / args.eval_batch_size
-    elif args.split == "val":
+        num_batches = len(train_data) / eval_batch_size
+    elif split == "val":
         val_data = datasets.VOCDetectParsed(
             root=root, image_set="val", transform=transformer
         )
         loader = torch.utils.data.DataLoader(
             val_data,
-            batch_size=args.eval_batch_size,
+            batch_size=eval_batch_size,
             shuffle=False,
-            num_workers=4,
+            num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(val_data) / args.eval_batch_size
-    elif args.split == "test":
+        num_batches = len(val_data) / eval_batch_size
+    elif split == "test":
         test_data = datasets.VOCDetectParsed(
             root=root, image_set="test", transform=transformer
         )
         loader = torch.utils.data.DataLoader(
             test_data,
-            batch_size=args.eval_batch_size,
+            batch_size=eval_batch_size,
             shuffle=False,
-            num_workers=4,
+            num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(test_data) / args.eval_batch_size
+        num_batches = len(test_data) / eval_batch_size
+    elif split == "seg_test":  # NEW
+        test_data = datasets.SegmentDataset(
+            root=root + "/all_segment.pt", transform=transformer
+        )
+        loader = torch.utils.data.DataLoader(
+            test_data,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=datasets.SegmentDataset.collate_fn,
+        )
+        num_batches = len(test_data) / eval_batch_size
     else:
-        raise Exception("Data split not valid choose from ['train', 'val', 'test']")
+        raise NotImplementedError(
+            f'Data split not valid choose from ["train", "val", "test", "seg_test"] but received "{split}"'
+        )
 
     # Get loss function to calculate loss of split
     loss_fn = torch.nn.BCEWithLogitsLoss()
-    loss_loc = (
-        losses.get_localization_loss(args.localization_loss_fn)
-        if args.localization_loss_fn
-        else None
-    )
 
-    # Get model activator to procces batches
-    model_activator = model_activators.ResNetModelActivator(
-        model=model, layer=layer_idx, is_bcos=is_bcos
-    )
+    num_classes_dict = {"VOC2007": 20, "COCO2014": 80}
+    num_classes = num_classes_dict[dataset]
 
-    # If neede get atribution method to calculate atribution maps
-    if args.attribution_method:
-        interpolate = True if layer_idx is not None else False
-        eval_attributor = attribution_methods.get_attributor(
-            model,
-            args.attribution_method,
-            loss_loc.only_positive,
-            loss_loc.binarize,
-            interpolate,
-            (224, 224),
-            batch_mode=False,
+    # Create TensorBoard writer
+    if log_path is not None:
+        writer = torch.utils.tensorboard.SummaryWriter(
+            log_dir=os.path.join(log_path, dataset)
         )
     else:
-        eval_attributor = None
+        writer = None
 
     # Evaluate model
     metric_vals = eval_model(
@@ -258,32 +251,64 @@ def main(args):
         loss_fn,
         writer,
         1,
-        args,
+        mode=mode,
+        vis_flag=vis_iou_thr_methods,
     )
+    if npz:
+        # Save metrics as .npz file in log_path
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
+
+        if pareto:
+            epoch = model_path.split("_")[-1].split(".")[0]
+            if attribution_method:
+                npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
+            else:
+                npz_name = f"{dataset}_{split}_{model_backbone}_Pareto_{epoch}.npz"
+
+        else:
+            if attribution_method:
+                npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}.npz"
+            else:
+                npz_name = f"{dataset}_{split}_{model_backbone}.npz"
+
+        npz_path = os.path.join(log_path, npz_name)
+
+        np.savez(npz_path, **metric_vals)
+
     return metric_vals
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_backbone",
-        type=str,
-        choices=["bcos", "xdnn", "vanilla"],
-        required=True,
-        help="Model backbone to train.",
-    )
-    parser.add_argument(
         "--model_path",
         type=str,
         default=None,
-        help="Path to checkpoint to fine tune from. When None, a model is trained starting from ImageNet pre-trained weights.",
+        help="Path to checkpoint to eval",
         required=True,
     )
     parser.add_argument(
-        "--data_path", type=str, default="datasets/", help="Path to datasets."
+        "--fix_layer",
+        type=str,
+        default=None,
+        choices=["Input", "Final"],
+        help="Layer to get attributions from",
     )
     parser.add_argument(
-        "--log_path", type=str, default=None, help="Path to save TensorBoard logs."
+        "--pareto",
+        action="store_true",
+        default=False,
+        help="Flag for storing pareto models",
+    )
+    parser.add_argument(
+        "--eval_batch_size",
+        type=int,
+        default=4,
+        help="Batch size to use for evaluation.",
+    )
+    parser.add_argument(
+        "--data_path", type=str, default="datasets/", help="Path to datasets."
     )
     parser.add_argument(
         "--dataset",
@@ -296,29 +321,8 @@ if __name__ == "__main__":
         "--split",
         type=str,
         default="test",
-        choices=["train", "val", "test"],
+        choices=["train", "val", "test", "seg_test"],
         help="Set to evaluate on",
-    )
-    parser.add_argument(
-        "--layer",
-        type=str,
-        default="Input",
-        choices=["Input", "Final", "Mid1", "Mid2", "Mid3"],
-        help="Layer of the model to compute and optimize attributions on.",
-    )
-    parser.add_argument(
-        "--localization_loss_fn",
-        type=str,
-        default=None,
-        choices=["Energy", "L1", "RRR", "PPCE"],
-        help="Localization loss function to use.",
-    )
-    parser.add_argument(
-        "--attribution_method",
-        type=str,
-        default=None,
-        choices=["BCos", "GradCam", "IxG"],
-        help="Attribution method to use for optimization.",
     )
     parser.add_argument(
         "--annotated_fraction",
@@ -327,16 +331,26 @@ if __name__ == "__main__":
         help="Fraction of training dataset from which bounding box annotations are to be used.",
     )
     parser.add_argument(
-        "--eval_batch_size",
-        type=int,
-        default=4,
-        help="Batch size to use for evaluation.",
+        "--log_path",
+        type=str,
+        default=None,
+        help="Path to save TensorBoard logs/npz file.",
     )
     parser.add_argument(
-        "--box_dilation_percentage",
-        type=float,
-        default=0,
-        help="Fraction of dilation to use for bounding boxes when training.",
+        "--mode",
+        type=str,
+        default="bbs",
+        choices=[
+            "bbs",
+            "segment",
+        ],
+        help="mode indicates if also evaluating on sementation mask",
+    )
+    parser.add_argument(
+        "--npz",
+        action="store_true",
+        default=False,
+        help="Flag for storing results in .npz file",
     )
     parser.add_argument(
         "--vis_iou_thr_methods",
@@ -344,5 +358,69 @@ if __name__ == "__main__":
         default=False,
         help="Flag for displaying the different IoU threshold methods on first image in the batch",
     )
+
     args = parser.parse_args()
-    main(args)
+    evaluation_function(**vars(args))
+
+    # print("Baseline:")
+    # evaluation_function(
+    #     "./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+    #     pareto=True,
+    #     split="seg_test",
+    #     mode="segment",
+    # )
+    # print("Finetune:")
+    # evaluation_function(
+    #     "./FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerFinal/model_checkpoint_f1_best.pt",
+    #     split="seg_test",
+    #     mode="segment",
+    # )
+
+    # # Root directory
+    # root_dir = "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/"
+
+    # # Regular expression to match and extract information from file names
+    # pattern = re.compile(
+    #     r'(\w+)_finetunedobjlocpareto_attr(\w+)_locloss(\w+)_origmodel_checkpoint_f1_best.pt_(\w+)_lr([0-9.e-]+)_sll([0-9.e-]+)_layer(\w+)/pareto_front/model_checkpoint_pareto_(.+).pt'
+    # )
+
+    # # Walk through the directory
+    # for subdir, dirs, files in os.walk(root_dir):
+    #     for file_name in tqdm(files):
+    #         full_path = os.path.join(subdir, file_name)
+    #         if file_name.endswith(".pt") and 'pareto_front' in full_path:
+    #             match = pattern.search(full_path)
+    #             if match:
+    #                 attr_type, attr_name, loss_type, _, _, _, layer_type, _ = match.groups()
+    #                 model_path = full_path
+    #                 pareto = True
+    #                 log_path = f"metrics_per_model_{attr_type.lower()}/"
+
+    #                 # # print all the arguments
+    #                 # print(f"attr_type: {attr_type}")
+    #                 # print(f"attr_name: {attr_name}")
+    #                 # print(f"loss_type: {loss_type}")
+    #                 # print(f"layer_type: {layer_type}")
+    #                 # print(f"pareto: {pareto}")
+    #                 # print(f"log_path: {log_path}")
+
+    #                 # Call the evaluation function
+    #                 evaluation_function(model_backbone=attr_type.lower(),
+    #                                     model_path=model_path,
+    #                                     localization_loss_fn=loss_type,
+    #                                     layer=layer_type,
+    #                                     attribution_method=attr_name,
+    #                                     pareto=pareto,
+    #                                     log_path=log_path)
+
+    # baseline BCOS
+    # model_path = "/home/roan/Documents/FACTifAI_2024_3/BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput/model_checkpoint_f1_best.pt"
+
+    # evaluation_function(model_backbone="vanilla",
+    #                     model_path=model_path,
+    #                     localization_loss_fn=None,
+    #                     layer="Input",
+    #                     attribution_method=None,
+    #                     pareto=False,
+    #                     baseline=True,
+    #                     log_path="metrics_per_model_vanilla/")
