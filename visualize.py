@@ -8,6 +8,173 @@ import utils
 import numpy as np
 
 
+def visualize_fig9(
+    model_paths,
+    fix_layer=None,
+    data_path="datasets/",
+    dataset="VOC2007",
+    image_set="test",
+):
+    # Get dataset path
+    root = os.path.join(data_path, dataset, "processed")
+
+    # Create figure
+    fig, axs = plt.subplots(
+        1,
+        1 + len(model_paths),
+        figsize=(5 * (1 + len(model_paths)), 5),
+    )
+
+    # Create custom color map
+    dark_red_cmap = utils.get_color_map()
+
+    # Load images
+    data = datasets.VOCDetectParsed(root=root, image_set=image_set)
+    loader = torch.utils.data.DataLoader(
+        data,
+        batch_size=1,
+        shuffle=True,
+        num_workers=1,
+        collate_fn=datasets.VOCDetectParsed.collate_fn,
+    )
+
+    # Get one random batch
+    inputs, classes, bb_box_list = next(iter(loader))
+    # Class picked per image (images contain multiple classes)
+    chosen_classes = []
+    # Get image
+    image = inputs[0]
+    # Get all bboxes for this image
+    bbs = bb_box_list[0]
+
+    # Pick one random class from all classes in image
+    clas = np.random.choice(torch.where(classes[0] == 1)[0])
+    chosen_classes.append(clas)
+
+    # Get class name from class number
+    class_name = utils.get_class_name(clas)
+
+    # Get bboxes from specific classes
+    class_bbs = utils.filter_bbs(bbs, clas)
+
+    # Show original image
+    axs[0].imshow(torch.movedim(image[:3, :, :], 0, -1))
+    axs[0].set_title(
+        "Input",
+        fontsize=45,
+        fontname="Times New Roman",
+        fontweight=650,
+    )
+    axs[0].set_ylabel(
+        class_name,
+        fontsize=45,
+        fontname="Times New Roman",
+        fontweight=650,
+    )
+
+    # Plot boundingboxes
+    for coords in class_bbs:
+        xmin, ymin, xmax, ymax = coords
+        axs[0].add_patch(
+            patches.Rectangle(
+                (xmin, ymin),
+                xmax - xmin,
+                ymax - ymin,
+                fc="none",
+                ec="royalblue",
+                lw=5,
+            )
+        )
+    for row_idx, path in enumerate(model_paths):
+        # Get model spec from path
+        (
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+        ) = utils.get_model_specs(path)
+        print(model_backbone, localization_loss_fn)
+        # If no attribution method set default values
+        if not attribution_method:
+            if model_backbone == "bcos":
+                attribution_method = "BCos"
+            elif model_backbone == "vanilla":
+                attribution_method = "IxG"
+
+        og_loss_fn = localization_loss_fn
+        # default localistion loss is energy
+        if not localization_loss_fn:
+            localization_loss_fn = "Energy"
+
+        # If fixed layers are given set layer
+        if fix_layer:
+            layer = fix_layer
+        # Get model, attributor, en transform based on specs
+        model, attributor, transformer = utils.get_model(
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+            dataset,
+            path,
+        )
+        model.eval()
+
+        # apply transform
+        transformer.dim = -3
+        X = transformer(inputs.clone())
+
+        # Get output from model
+        X.requires_grad = True
+        X = X.cuda()
+        logits, features = model(X)
+
+        # Get attributions per image
+        for img_idx, image in enumerate(X):
+            pred = chosen_classes[img_idx]
+            attributions = (
+                attributor(features, logits, pred, img_idx)
+                .detach()
+                .squeeze(0)
+                .squeeze(0)
+            )
+            positive_attributions = attributions.clamp(min=0).cpu()
+            bb = utils.filter_bbs(bb_box_list[img_idx], pred)
+
+            # Plot attribution map
+            axs[row_idx + 1].imshow(positive_attributions, cmap=dark_red_cmap)
+            # Plot boundingbox
+            for coords in bb:
+                xmin, ymin, xmax, ymax = coords
+                axs[row_idx + 1].add_patch(
+                    patches.Rectangle(
+                        (xmin, ymin),
+                        xmax - xmin,
+                        ymax - ymin,
+                        fc="none",
+                        ec="royalblue",
+                        lw=5,
+                    )
+                )
+            # Set row title
+            if og_loss_fn is None:
+                localization_loss_fn = "Baseline"
+            axs[row_idx + 1].set_title(
+                localization_loss_fn,
+                fontsize=45,
+                fontname="Times New Roman",
+                fontweight=650,
+            )
+
+    # Disable ticks
+    for ax in axs:
+        ax.axes.get_xaxis().set_ticks([])
+        ax.axes.get_yaxis().set_ticks([])
+    # Save figure
+    # fig.tight_layout()
+    plt.savefig("Figure9.png")
+
+
 def visualize_fig2(
     models_names,
     models_modes,
@@ -40,11 +207,6 @@ def visualize_fig2(
     )
 
     # Create custom color map
-    cdict = {
-        "red": [(0.0, 1.0, 1.0), (1.0, 1.0, 1.0)],
-        "green": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
-        "blue": [(0.0, 1.0, 1.0), (1.0, 0.0, 0.0)],
-    }
     dark_red_cmap = utils.get_color_map()
 
     # Load images
@@ -157,7 +319,6 @@ def visualize_fig2(
 
             # Get attributions per image
             for img_idx, image in enumerate(X):
-                class_target = torch.where(classes[img_idx] == 1)[0]
                 pred = chosen_classes[img_idx]
                 attributions = (
                     attributor(features, logits, pred, img_idx)
@@ -197,6 +358,7 @@ def visualize_fig2(
             ax.axes.get_xaxis().set_ticks([])
             ax.axes.get_yaxis().set_ticks([])
 
+    # Save figure
     fig.tight_layout()
     plt.savefig("Figure2.png")
 
@@ -257,3 +419,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args = vars(args)
     visualize_fig2(**args)
+    visualize_fig9(
+        [
+            "BASE\VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",
+            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput\model_checkpoint_f1_best.pt",
+            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput\model_checkpoint_f1_best.pt",
+            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.0005_layerInput\model_checkpoint_f1_best.pt",
+            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll1e-05_layerInput\model_checkpoint_f1_best.pt",
+        ]
+    )
