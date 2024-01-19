@@ -1,3 +1,19 @@
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
+Based on the code of the paper "GALS: Guiding Visual Attention with Language Specification": https://github.com/spetryk/GALS/blob/main/datasets/waterbirds.py
+
+datasets/Waterbirds-100%/preprocess.py
+
+Download the CUB dataset from https://www.vision.caltech.edu/datasets/cub_200_2011/
+Download the Waterbirds-100% dataset from https://drive.google.com/file/d/1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k/view
+"""
+
 import torch
 import torchvision.transforms as transforms
 import pandas as pd
@@ -6,8 +22,6 @@ import os
 from PIL import Image
 from tqdm import tqdm
 import argparse
-
-# https://github.com/spetryk/GALS/blob/main/datasets/waterbirds.py
 
 def preprocess_waterbirds(args):
     cub_dataset_root = args.cub_dataset_root
