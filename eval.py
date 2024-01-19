@@ -144,6 +144,7 @@ def evaluation_function(
     mode="bbs",
     npz=False,
     vis_iou_thr_methods=False,
+    baseline=False,
 ):
     """
     Function which returns the metrics of a given model in model_path
@@ -281,11 +282,19 @@ def evaluation_function(
             os.makedirs(log_path)
 
         if pareto:
-            epoch = model_path.split("_")[-1].split(".")[0]
             if attribution_method:
+                epoch = model_path.split("_")[-1].split(".")[0]
                 npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
             else:
                 npz_name = f"{dataset}_{split}_{model_backbone}_Pareto_{epoch}.npz"
+
+        elif baseline:
+
+            if attribution_method:
+                epoch = model_path.split("_")[-1].split(".")[0]
+                npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Baseline.npz"
+            else:
+                npz_name = f"{dataset}_{split}_{model_backbone}_Baseline.npz"
 
         else:
             if attribution_method:
