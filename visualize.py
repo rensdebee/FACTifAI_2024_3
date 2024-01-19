@@ -128,7 +128,6 @@ def visualize_fig9(
             transformer.dim = -3
             X = transformer(inputs.clone())
             X = X[i : i + 1]
-            print(X.shape)
             # Get output from model
             X.requires_grad = True
             X = X.cuda()
@@ -405,61 +404,61 @@ def visualize_fig2(
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--models_names",
-    #     type=list,
-    #     default=["B-cos", "IxG"],
-    #     help="Model backbones to plot.",
-    # )
-    # parser.add_argument(
-    #     "--models_modes",
-    #     type=list,
-    #     default=["Baseline", "Guided"],
-    #     help="Model modes to plot.",
-    # )
-    # parser.add_argument(
-    #     "--models_paths",
-    #     type=list,
-    #     default=[
-    #         [
-    #             "BASE\VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",
-    #             "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput\model_checkpoint_f1_best.pt",
-    #         ],
-    #         [
-    #             "BASE\VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",
-    #             "FT\VOC2007/vanilla_finetunedobjlocpareto_attrIxG_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerFinal\model_checkpoint_f1_best.pt",
-    #         ],
-    #     ],
-    #     help="Model modes to plot.",
-    # )
-    # parser.add_argument("--fix_layers", type=list, default=["Input", "Final"])
-    # parser.add_argument(
-    #     "--data_path", type=str, default="datasets/", help="Path to datasets."
-    # )
-    # parser.add_argument(
-    #     "--dataset",
-    #     type=str,
-    #     default="VOC2007",
-    #     choices=["VOC2007", "COCO2014"],
-    #     help="Dataset to train on.",
-    # )
-    # parser.add_argument(
-    #     "--image_set",
-    #     type=str,
-    #     default="test",
-    #     choices=["train", "val", "test"],
-    #     help="Dataset to train on.",
-    # )
-    # args = parser.parse_args()
-    # args = vars(args)
-    # visualize_fig2(**args)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--models_names",
+        type=list,
+        default=["B-cos", "IxG"],
+        help="Model backbones to plot.",
+    )
+    parser.add_argument(
+        "--models_modes",
+        type=list,
+        default=["Baseline", "Guided"],
+        help="Model modes to plot.",
+    )
+    parser.add_argument(
+        "--models_paths",
+        type=list,
+        default=[
+            [
+                "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+                "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
+            ],
+            [
+                "BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+                "FT/VOC2007/vanilla_finetunedobjlocpareto_attrIxG_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal/model_checkpoint_f1_best.pt",
+            ],
+        ],
+        help="Model modes to plot.",
+    )
+    parser.add_argument("--fix_layers", type=list, default=["Input", "Final"])
+    parser.add_argument(
+        "--data_path", type=str, default="datasets/", help="Path to datasets."
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="VOC2007",
+        choices=["VOC2007", "COCO2014"],
+        help="Dataset to train on.",
+    )
+    parser.add_argument(
+        "--image_set",
+        type=str,
+        default="test",
+        choices=["train", "val", "test"],
+        help="Dataset to train on.",
+    )
+    args = parser.parse_args()
+    args = vars(args)
+    visualize_fig2(**args)
     visualize_fig9(
         [
-            "BASE\VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",
-            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput\model_checkpoint_f1_best.pt",
-            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput\model_checkpoint_f1_best.pt",
-            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.0005_layerInput\model_checkpoint_f1_best.pt",
-            "FT\VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll1e-05_layerInput\model_checkpoint_f1_best.pt",
+            "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.01_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll5e-05_layerInput/model_checkpoint_f1_best.pt",
         ]
     )
