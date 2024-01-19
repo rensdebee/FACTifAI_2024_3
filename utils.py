@@ -135,16 +135,29 @@ class ParetoFrontModels:
             If return_mask is True, this will be an(n_points, ) boolean array
             Otherwise it will be a(n_efficient_points, ) integer array of indices.
         """
+
+        # Create an array of `n_points` indices containing all the points in the frontier
         is_efficient = np.arange(costs.shape[0])
         n_points = costs.shape[0]
-        next_point_index = 0  # Next index in the is_efficient array to search for
+
+        # Next index in the is_efficient array to search for
+        next_point_index = 0 
+
+        # Loop through all the points
         while next_point_index < len(costs):
+
+            # Get the nondominated point mask of the next point
             nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
+
+            # If next_point_index is nondominated
             nondominated_point_mask[next_point_index] = True
+
             # Remove dominated points
             is_efficient = is_efficient[nondominated_point_mask]
             costs = costs[nondominated_point_mask]
             next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
+
+        # Return mask or index
         if return_mask:
             is_efficient_mask = np.zeros(n_points, dtype=bool)
             is_efficient_mask[is_efficient] = True
