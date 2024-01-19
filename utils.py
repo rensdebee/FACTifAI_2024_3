@@ -85,10 +85,10 @@ class ParetoFrontModels:
         self.pareto_checkpoints = []
         self.pareto_costs = []
 
-    def update(self, model, metric_dict, epoch):
+    def update(self, model, metric_dict, epoch, sll):
         metric_vals = copy.deepcopy(metric_dict)
         state_dict = copy.deepcopy(model.state_dict())
-        metric_vals.update({"model": state_dict, "epochs": epoch + 1})
+        metric_vals.update({"model": state_dict, "epochs": epoch + 1, "sll": sll})
         self.pareto_checkpoints.append(metric_vals)
         self.pareto_costs.append(
             [metric_vals["F-Score"], metric_vals["BB-Loc"], metric_vals["BB-IoU"]]
@@ -110,7 +110,7 @@ class ParetoFrontModels:
     def get_pareto_front(self):
         return self.pareto_checkpoints, self.pareto_costs
 
-    def save_pareto_front(self, save_path):
+    def save_pareto_front(self, save_path, npz=False):
         augmented_path = os.path.join(save_path, "pareto_front")
         os.makedirs(augmented_path, exist_ok=True)
         for idx in range(len(self.pareto_checkpoints)):
@@ -118,13 +118,19 @@ class ParetoFrontModels:
             bb_score = self.pareto_checkpoints[idx]["BB-Loc"]
             iou_score = self.pareto_checkpoints[idx]["BB-IoU"]
             epoch = self.pareto_checkpoints[idx]["epochs"]
+            sll = self.pareto_checkpoints[idx]["sll"]
             torch.save(
                 self.pareto_checkpoints[idx],
                 os.path.join(
                     augmented_path,
-                    f"model_checkpoint_pareto_{f_score:.4f}_{bb_score:.4f}_{iou_score:.4f}_{epoch}.pt",
+                    f"test_pareto_ch_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_MOD{epoch}.pt",
                 ),
             )
+            if npz:
+                # Save as npz
+                npz_name = f"SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
+                npz_path = os.path.join(save_path, npz_name)
+                np.savez(npz_path, f_score=f_score, bb_score=bb_score, iou_score=iou_score, sll=sll)
 
     def is_pareto_efficient(self, costs, return_mask=True):
         """
@@ -243,6 +249,35 @@ def get_class_name(class_num):
             return key
 
     return "class doesn't exist"
+
+
+def get_class_number(class_name):
+    """
+    Function to map from class number back to classname
+    """
+    target_dict = {
+        "aeroplane": 0,
+        "bicycle": 1,
+        "bird": 2,
+        "boat": 3,
+        "bottle": 4,
+        "bus": 5,
+        "car": 6,
+        "cat": 7,
+        "chair": 8,
+        "cow": 9,
+        "diningtable": 10,
+        "dog": 11,
+        "horse": 12,
+        "motorbike": 13,
+        "person": 14,
+        "pottedplant": 15,
+        "sheep": 16,
+        "sofa": 17,
+        "train": 18,
+        "tvmonitor": 19,
+    }
+    return target_dict[class_name]
 
 
 def get_model_specs(path):

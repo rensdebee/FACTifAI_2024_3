@@ -190,56 +190,56 @@ def evaluation_function(
     root = os.path.join(data_path, dataset, "processed")
 
     if split == "train":
-        train_data = datasets.VOCDetectParsed(
+        data = datasets.VOCDetectParsed(
             root=root,
             image_set="train",
             transform=transformer,
             annotated_fraction=annotated_fraction,
         )
         loader = torch.utils.data.DataLoader(
-            train_data,
+            data,
             batch_size=eval_batch_size,
             shuffle=True,
             num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(train_data) / eval_batch_size
+        num_batches = len(data) / eval_batch_size
     elif split == "val":
-        val_data = datasets.VOCDetectParsed(
+        data = datasets.VOCDetectParsed(
             root=root, image_set="val", transform=transformer
         )
         loader = torch.utils.data.DataLoader(
-            val_data,
+            data,
             batch_size=eval_batch_size,
             shuffle=False,
             num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(val_data) / eval_batch_size
+        num_batches = len(data) / eval_batch_size
     elif split == "test":
-        test_data = datasets.VOCDetectParsed(
+        data = datasets.VOCDetectParsed(
             root=root, image_set="test", transform=transformer
         )
         loader = torch.utils.data.DataLoader(
-            test_data,
+            data,
             batch_size=eval_batch_size,
             shuffle=False,
             num_workers=0,
             collate_fn=datasets.VOCDetectParsed.collate_fn,
         )
-        num_batches = len(test_data) / eval_batch_size
+        num_batches = len(data) / eval_batch_size
     elif split == "seg_test":  # NEW
-        test_data = datasets.SegmentDataset(
+        data = datasets.SegmentDataset(
             root=root + "/all_segment.pt", transform=transformer
         )
         loader = torch.utils.data.DataLoader(
-            test_data,
+            data,
             batch_size=eval_batch_size,
             shuffle=False,
             num_workers=0,
             collate_fn=datasets.SegmentDataset.collate_fn,
         )
-        num_batches = len(test_data) / eval_batch_size
+        num_batches = len(data) / eval_batch_size
     else:
         raise NotImplementedError(
             f'Data split not valid choose from ["train", "val", "test", "seg_test"] but received "{split}"'
