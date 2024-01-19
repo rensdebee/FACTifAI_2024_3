@@ -10,7 +10,6 @@ Based on the code of the paper "GALS: Guiding Visual Attention with Language Spe
 
 datasets/Waterbirds-100%/preprocess.py
 
-Download the CUB dataset from https://www.vision.caltech.edu/datasets/cub_200_2011/
 Download the Waterbirds-100% dataset from https://drive.google.com/file/d/1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k/view
 """
 
@@ -23,40 +22,49 @@ from PIL import Image
 from tqdm import tqdm
 import argparse
 
+
 def preprocess_waterbirds(args):
     cub_dataset_root = args.cub_dataset_root
     waterbirds_dataset_root = args.waterbirds_dataset_root
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
+    transform = transforms.Compose(
+        [transforms.Resize((224, 224)), transforms.ToTensor()]
+    )
 
-    metadata_df = pd.read_csv(os.path.join(waterbirds_dataset_root, 'metadata.csv'))
-    bbox_df = pd.read_csv(os.path.join(cub_dataset_root, 'bounding_boxes.txt'), sep=' ', header=None, names=['img_id', 'x', 'y', 'width', 'height'])
+    metadata_df = pd.read_csv(os.path.join(waterbirds_dataset_root, "metadata.csv"))
+    bbox_df = pd.read_csv(
+        os.path.join(cub_dataset_root, "bounding_boxes.txt"),
+        sep=" ",
+        header=None,
+        names=["img_id", "x", "y", "width", "height"],
+    )
 
-    split_dict = {'train': 0, 'val': 1, 'test': 2}
-    split_mask = metadata_df['split'] == split_dict[args.split]
-
+    split_dict = {"train": 0, "val": 1, "test": 2, "worst": 2}
+    split_mask = metadata_df["split"] == split_dict[args.split]
     images = []
     labels = []
     bboxes = []
-
+    total = 0
     for _, row in tqdm(metadata_df[split_mask].iterrows(), total=sum(split_mask)):
-        img_path = os.path.join(waterbirds_dataset_root, row['img_filename'])
-        img = Image.open(img_path).convert('RGB')
+        if int(row["place"]) != int(row["y"]) and args.split == "val":
+            continue
+        if (int(row["place"]) != 0 or int(row["y"]) != 1) and args.split == "worst":
+            continue
+        total += 1
+        img_path = os.path.join(waterbirds_dataset_root, row["img_filename"])
+        img = Image.open(img_path).convert("RGB")
         original_size = img.size
         img = transform(img)
         images.append(img)
 
-        labels.append(row['y'])
+        labels.append(row["y"])
 
-        if row['img_id'] not in bbox_df['img_id'].values:
+        if row["img_id"] not in bbox_df["img_id"].values:
             print(f"Warning: img_id {row['img_id']} not found in bbox_df")
             continue
 
-        bbox_row = bbox_df[bbox_df['img_id'] == row['img_id']].iloc[0]
+        bbox_row = bbox_df[bbox_df["img_id"] == row["img_id"]].iloc[0]
 
-        bbox = [bbox_row['x'], bbox_row['y'], bbox_row['width'], bbox_row['height']]
+        bbox = [bbox_row["x"], bbox_row["y"], bbox_row["width"], bbox_row["height"]]
         bbox_scaled = scale_bbox(bbox, original_size)
         bboxes.append(bbox_scaled)
 
@@ -81,8 +89,7 @@ def preprocess_waterbirds(args):
         # plt.draw()  # Draw the figure before showing
         # plt.pause(2)  # Show it for 2 seconds
         # plt.close()  # Close the figure
-
-
+    print(f"Total num of images in set: {total}")
     images = torch.stack(images)
     labels = torch.tensor(labels, dtype=torch.float32)
     bboxes = torch.tensor(bboxes, dtype=torch.float32)
@@ -92,6 +99,7 @@ def preprocess_waterbirds(args):
     save_path = os.path.join(args.save_path, args.split + ".pt")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(dataset, save_path)
+
 
 def scale_bbox(bbox, img_size):
     orig_width, orig_height = img_size  # Original image size
@@ -106,11 +114,24 @@ def scale_bbox(bbox, img_size):
 
     return [x, y, width, height]
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cub_dataset_root", type=str, required=True, help="Root directory of CUB dataset")
-    parser.add_argument("--waterbirds_dataset_root", type=str, required=True, help="Root directory of Waterbirds-100 dataset")
-    parser.add_argument("--split", type=str, choices=["train", "val", "test"], required=True)
+    parser.add_argument(
+        "--cub_dataset_root",
+        type=str,
+        default="./",
+        help="Root directory of CUB dataset",
+    )
+    parser.add_argument(
+        "--waterbirds_dataset_root",
+        type=str,
+        default="./waterbird_1.0_forest2water2/",
+        help="Root directory of Waterbirds-100 dataset",
+    )
+    parser.add_argument(
+        "--split", type=str, choices=["train", "val", "test", "worst"], required=True
+    )
     parser.add_argument("--save_path", type=str, default="processed/")
     args = parser.parse_args()
 

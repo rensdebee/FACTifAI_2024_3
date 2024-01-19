@@ -24,16 +24,16 @@ def eval_model(
     mode="bbs",
     vis_flag=False,
 ):
-    """ 
+    """
     Evaluates a model, helper function of evaluation_function.
     if mode is set to bbs: only bounding boxes are evaluated.
     if mode is set to segment: The specail segment loader should be added.
-    
-    Returns: 
+
+    Returns:
         A dictionary with all evaluation metrics.
     """
     model.eval()
-    
+
     # create all metrics
     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
     bb_metric = metrics.BoundingBoxEnergyMultiple()
@@ -41,14 +41,16 @@ def eval_model(
     frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
     total_loss = 0
-    
-    # for every image, evaluate 
+
+    # for every image, evaluate
     for batch_idx, data in enumerate(tqdm(loader)):
         if mode == "bbs":
             test_X, test_y, test_bbs = data
         elif mode == "segment":
             test_X, test_y, test_segment, test_bbs = data
-            test_segment = test_segment.cuda() # to GPU to do element wise matrix multiplication
+            test_segment = (
+                test_segment.cuda()
+            )  # to GPU to do element wise matrix multiplication
         else:
             raise NotImplementedError
 
@@ -57,7 +59,8 @@ def eval_model(
         test_X = test_X.cuda()
         test_y = test_y.cuda()
         logits, features = model(test_X)
-
+        if len(test_y.shape) == 1:
+            test_y = test_y.unsqueeze(dim=1)
         loss = loss_fn(logits, test_y).detach()
         total_loss += loss
         f1_metric.update(logits, test_y)
@@ -80,7 +83,7 @@ def eval_model(
                         print(test_bbs[img_idx])
                         print(len(bb_list))
                         raise ValueError
-                    
+
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list, image, pred)
                     if mode == "segment":
@@ -96,7 +99,7 @@ def eval_model(
                             bb_coordinates=bb_list,
                         )
 
-    # finalize metric calculations, 
+    # finalize metric calculations,
     metric_vals = f1_metric.compute()
     if attributor:
         bb_metric_vals = bb_metric.compute()
@@ -114,7 +117,7 @@ def eval_model(
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
     print(f"Validation Metrics: {metric_vals}")
     model.train()
-    
+
     # write to tensorboard
     if writer is not None:
         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
