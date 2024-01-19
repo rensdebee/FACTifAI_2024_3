@@ -85,7 +85,7 @@ def eval_model(model: torch.nn.Module,
             # Loop over images in batch
             for img_idx in range(len(test_X)):
 
-                # Get target class
+                # Get target class of the image
                 class_target = torch.where(test_y[img_idx] == 1)[0]
 
                 # Loop over target classes
@@ -97,7 +97,7 @@ def eval_model(model: torch.nn.Module,
                     # Create bounding box list
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
-                    # Update Bounding Box Energy and IoU metrics
+                    # Update Bounding Box Energy metric and IoU metric
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list)
 
