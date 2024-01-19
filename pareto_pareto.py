@@ -18,28 +18,47 @@ import bcos
 import bcos.modules
 import bcos.data
 import fixup_resnet
-from old_eval import eval_model
+from eval import eval_model
+import re
 
 def main(args):
-    pareto_front_tracker = utils.ParetoFrontModels()
+    root_dir = "./FT/VOC2007"
 
-    root_dir = "./FT/ptest/VOC2007/"
+    # for base in os.listdir(root_dir):
+    #     base_path = os.path.join(root_dir, base)
+
+    #     for layer in os.listdir()
+
+    pareto_front_tracker_EPG = utils.ParetoFrontModels(epg=True, iou=False)
+    pareto_front_tracker_IOU = utils.ParetoFrontModels(epg=False, iou=True)
+
+    root_dir = "./FT/VOC2007/bcos/fin/l1"
+    output_dir = ""
 
     num_model = 0
 
-    #TODO WEG
-    test_counter = 0
+    # #TODO WEG
+    # test_counter = 0
 
     # Loop over directories of fine tuned models for different lambda's
     for model_dir in os.listdir(root_dir):
         #TODO WEG
-        if test_counter == 1:
-            break
+        # if test_counter == 1:
+        #     break
 
         model_path = os.path.join(root_dir, model_dir)
+        print(model_dir)
 
-        #TODO WEG
-        test_counter += 1
+        # #TODO WEG
+        # test_counter += 1
+
+        # Extract the used localization loss
+        pattern = re.compile(r'sll([\d.]+)')
+        # Search for the pattern in the path name
+        match = pattern.search(model_dir)
+        if match:
+            # Retrieve the numerical value after "sll"
+            sll = match.group(1)
 
         # Look in model dir for the pareto_front map
         for pareto_dir in os.listdir(model_path):
@@ -53,6 +72,8 @@ def main(args):
                 print(full_path)
                 
                 model_backbone, localization_loss_fn, layer, attribution_method = utils.get_model_specs(full_path)
+                output_dir = os.path.join(model_backbone, layer, localization_loss_fn)
+                print(output_dir)
 
                 utils.set_seed(args.seed)
 
@@ -187,24 +208,19 @@ def main(args):
                     loss_fn,
                     None, #writer,
                     1,
-                    None, #args,
+                    mode="bbs",
+                    vis_flag=False,
                 )
-
-                # Find the used learning rate
-                if "sll0.001" in model_path:
-                    sll = "0.001"
-                if "sll0.005" in model_path:
-                    sll = "0.005"
-                if "sll0.0005" in model_path:
-                    sll = "0.0005"
                 
-                pareto_front_tracker.update(model, metric_vals, num_model, sll)
+                pareto_front_tracker_EPG.update(model, metric_vals, num_model, sll)
+                pareto_front_tracker_IOU.update(model, metric_vals, num_model, sll)
                 num_model += 1
 
-    save_path = os.path.join(args.save_path, args.dataset, "TEST")
+    save_path = os.path.join(args.save_path, args.dataset, output_dir)
     os.makedirs(save_path, exist_ok=True)
 
-    pareto_front_tracker.save_pareto_front(save_path, npz=True)
+    pareto_front_tracker_EPG.save_pareto_front(save_path, npz=True)
+    pareto_front_tracker_IOU.save_pareto_front(save_path, npz=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -215,7 +231,7 @@ if __name__ == "__main__":
         "--log_path", type=str, default=None, help="Path to save TensorBoard logs."
     )
     parser.add_argument(
-        "--save_path", type=str, default="ptest7", help="Path to save the pareto front at."
+        "--save_path", type=str, default="p_curves/", help="Path to save the pareto front at."
     )
     parser.add_argument(
         "--dataset",
