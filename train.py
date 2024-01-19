@@ -124,14 +124,9 @@ from torchvision.transforms import v2
 #     # Compute Average Loss
 #     metric_vals["Average-Loss"] = total_loss.item() / num_batches
 
-<<<<<<< HEAD
                     # Update Bounding Box Energy metric and IoU metric
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list)
-=======
-#     # Print metrics
-#     print(f"Validation Metrics: {metric_vals}")
->>>>>>> 18256a8af70fb18095e627a86341dde3baa4d37d
 
 #     # Set model to training mode
 #     model.train()
