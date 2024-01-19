@@ -24,16 +24,16 @@ def eval_model(
     mode="bbs",
     vis_flag=False,
 ):
-    """ 
+    """
     Evaluates a model, helper function of evaluation_function.
     if mode is set to bbs: only bounding boxes are evaluated.
     if mode is set to segment: The specail segment loader should be added.
-    
-    Returns: 
+
+    Returns:
         A dictionary with all evaluation metrics.
     """
     model.eval()
-    
+
     # create all metrics
     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
     bb_metric = metrics.BoundingBoxEnergyMultiple()
@@ -41,14 +41,16 @@ def eval_model(
     frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
     total_loss = 0
-    
-    # for every image, evaluate 
+
+    # for every image, evaluate
     for batch_idx, data in enumerate(tqdm(loader)):
         if mode == "bbs":
             test_X, test_y, test_bbs = data
         elif mode == "segment":
             test_X, test_y, test_segment, test_bbs = data
-            test_segment = test_segment.cuda() # to GPU to do element wise matrix multiplication
+            test_segment = (
+                test_segment.cuda()
+            )  # to GPU to do element wise matrix multiplication
         else:
             raise NotImplementedError
 
@@ -57,7 +59,8 @@ def eval_model(
         test_X = test_X.cuda()
         test_y = test_y.cuda()
         logits, features = model(test_X)
-
+        if len(test_y.shape) == 1:
+            test_y = test_y.unsqueeze(dim=1)
         loss = loss_fn(logits, test_y).detach()
         total_loss += loss
         f1_metric.update(logits, test_y)
@@ -80,7 +83,7 @@ def eval_model(
                         print(test_bbs[img_idx])
                         print(len(bb_list))
                         raise ValueError
-                    
+
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list, image, pred)
                     if mode == "segment":
@@ -96,7 +99,7 @@ def eval_model(
                             bb_coordinates=bb_list,
                         )
 
-    # finalize metric calculations, 
+    # finalize metric calculations,
     metric_vals = f1_metric.compute()
     if attributor:
         bb_metric_vals = bb_metric.compute()
@@ -114,7 +117,7 @@ def eval_model(
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
     print(f"Validation Metrics: {metric_vals}")
     model.train()
-    
+
     # write to tensorboard
     if writer is not None:
         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
@@ -141,6 +144,7 @@ def evaluation_function(
     mode="bbs",
     npz=False,
     vis_iou_thr_methods=False,
+    baseline=False,
 ):
     """
     Function which returns the metrics of a given model in model_path
@@ -278,11 +282,19 @@ def evaluation_function(
             os.makedirs(log_path)
 
         if pareto:
-            epoch = model_path.split("_")[-1].split(".")[0]
             if attribution_method:
+                epoch = model_path.split("_")[-1].split(".")[0]
                 npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
             else:
                 npz_name = f"{dataset}_{split}_{model_backbone}_Pareto_{epoch}.npz"
+
+        elif baseline:
+
+            if attribution_method:
+                epoch = model_path.split("_")[-1].split(".")[0]
+                npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Baseline.npz"
+            else:
+                npz_name = f"{dataset}_{split}_{model_backbone}_Baseline.npz"
 
         else:
             if attribution_method:
@@ -379,66 +391,3 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     evaluation_function(**vars(args))
-
-    # print("Baseline:")
-    # evaluation_function(
-    #     "./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput/model_checkpoint_f1_best.pt",
-    #     pareto=True,
-    #     split="seg_test",
-    #     mode="segment",
-    # )
-    # print("Finetune:")
-    # evaluation_function(
-    #     "./FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerFinal/model_checkpoint_f1_best.pt",
-    #     split="seg_test",
-    #     mode="segment",
-    # )
-
-    # # Root directory
-    # root_dir = "/home/roan/Documents/FACTifAI_2024_3/FT/VOC2007/"
-
-    # # Regular expression to match and extract information from file names
-    # pattern = re.compile(
-    #     r'(\w+)_finetunedobjlocpareto_attr(\w+)_locloss(\w+)_origmodel_checkpoint_f1_best.pt_(\w+)_lr([0-9.e-]+)_sll([0-9.e-]+)_layer(\w+)/pareto_front/model_checkpoint_pareto_(.+).pt'
-    # )
-
-    # # Walk through the directory
-    # for subdir, dirs, files in os.walk(root_dir):
-    #     for file_name in tqdm(files):
-    #         full_path = os.path.join(subdir, file_name)
-    #         if file_name.endswith(".pt") and 'pareto_front' in full_path:
-    #             match = pattern.search(full_path)
-    #             if match:
-    #                 attr_type, attr_name, loss_type, _, _, _, layer_type, _ = match.groups()
-    #                 model_path = full_path
-    #                 pareto = True
-    #                 log_path = f"metrics_per_model_{attr_type.lower()}/"
-
-    #                 # # print all the arguments
-    #                 # print(f"attr_type: {attr_type}")
-    #                 # print(f"attr_name: {attr_name}")
-    #                 # print(f"loss_type: {loss_type}")
-    #                 # print(f"layer_type: {layer_type}")
-    #                 # print(f"pareto: {pareto}")
-    #                 # print(f"log_path: {log_path}")
-
-    #                 # Call the evaluation function
-    #                 evaluation_function(model_backbone=attr_type.lower(),
-    #                                     model_path=model_path,
-    #                                     localization_loss_fn=loss_type,
-    #                                     layer=layer_type,
-    #                                     attribution_method=attr_name,
-    #                                     pareto=pareto,
-    #                                     log_path=log_path)
-
-    # baseline BCOS
-    # model_path = "/home/roan/Documents/FACTifAI_2024_3/BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput/model_checkpoint_f1_best.pt"
-
-    # evaluation_function(model_backbone="vanilla",
-    #                     model_path=model_path,
-    #                     localization_loss_fn=None,
-    #                     layer="Input",
-    #                     attribution_method=None,
-    #                     pareto=False,
-    #                     baseline=True,
-    #                     log_path="metrics_per_model_vanilla/")
