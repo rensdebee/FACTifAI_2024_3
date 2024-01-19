@@ -232,6 +232,35 @@ def get_class_name(class_num):
     return "class doesn't exist"
 
 
+def get_class_number(class_name):
+    """
+    Function to map from class number back to classname
+    """
+    target_dict = {
+        "aeroplane": 0,
+        "bicycle": 1,
+        "bird": 2,
+        "boat": 3,
+        "bottle": 4,
+        "bus": 5,
+        "car": 6,
+        "cat": 7,
+        "chair": 8,
+        "cow": 9,
+        "diningtable": 10,
+        "dog": 11,
+        "horse": 12,
+        "motorbike": 13,
+        "person": 14,
+        "pottedplant": 15,
+        "sheep": 16,
+        "sofa": 17,
+        "train": 18,
+        "tvmonitor": 19,
+    }
+    return target_dict[class_name]
+
+
 def get_model_specs(path):
     """
     Function to get model specs from model path name
