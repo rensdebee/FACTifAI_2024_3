@@ -34,109 +34,109 @@ from typing import Any, Callable, Optional
 from eval import eval_model
 from torchvision.transforms import v2
 
-# def eval_model(
-#     model: torch.nn.Module,
-#     attributor: Any,
-#     loader: torch.utils.data.DataLoader,
-#     num_batches: int,
-#     num_classes: int,
-#     loss_fn: Callable,
-#     writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
-#     epoch: Optional[int] = None,
-# ) -> dict:
-#     """
-#     Evaluate a model given a dataloader and an attribution method.
+def eval_model(
+    model: torch.nn.Module,
+    attributor: Any,
+    loader: torch.utils.data.DataLoader,
+    num_batches: int,
+    num_classes: int,
+    loss_fn: Callable,
+    writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
+    epoch: Optional[int] = None,
+) -> dict:
+    """
+    Evaluate a model given a dataloader and an attribution method.
 
-#     Args:
-#         model (torch.nn.Module): The model to be evaluated.
-#         attributor (Any): An object or a function used for attribution, specific to the model's framework.
-#         loader (torch.utils.data.DataLoader): DataLoader object for loading the dataset.
-#         num_batches (int): Number of batches to evaluate the model on.
-#         num_classes (int): Number of classes in the classification task.
-#         loss_fn (Callable): Loss function used for evaluation.
-#         writer (Optional[torch.utils.tensorboard.writer.SummaryWriter]): Tensorboard writer for logging purposes. Defaults to None.
-#         epoch (Optional[int]): Current epoch number, used for logging. Defaults to None.
+    Args:
+        model (torch.nn.Module): The model to be evaluated.
+        attributor (Any): An object or a function used for attribution, specific to the model's framework.
+        loader (torch.utils.data.DataLoader): DataLoader object for loading the dataset.
+        num_batches (int): Number of batches to evaluate the model on.
+        num_classes (int): Number of classes in the classification task.
+        loss_fn (Callable): Loss function used for evaluation.
+        writer (Optional[torch.utils.tensorboard.writer.SummaryWriter]): Tensorboard writer for logging purposes. Defaults to None.
+        epoch (Optional[int]): Current epoch number, used for logging. Defaults to None.
 
-#     Returns:
-#         dict: A dictionary containing evaluation metrics such as accuracy and loss.
-#     """
+    Returns:
+        dict: A dictionary containing evaluation metrics such as accuracy and loss.
+    """
 
-#     # Set model to evaluation mode
-#     model.eval()
+    # Set model to evaluation mode
+    model.eval()
 
-#     # Initialize metrics
-#     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
-#     bb_metric = metrics.BoundingBoxEnergyMultiple()
-#     iou_metric = metrics.BoundingBoxIoUMultiple()
+    # Initialize metrics
+    f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
+    bb_metric = metrics.BoundingBoxEnergyMultiple()
+    iou_metric = metrics.BoundingBoxIoUMultiple()
 
-#     # Initialize total loss
-#     total_loss = 0
+    # Initialize total loss
+    total_loss = 0
 
-#     # Iterate over batches
-#     for batch_idx, (test_X, test_y, test_bbs) in enumerate(tqdm(loader)):
-#         test_X.requires_grad = True
-#         test_X = test_X.cuda()
-#         test_y = test_y.cuda()
-#         logits, features = model(test_X)
-#         loss = loss_fn(logits, test_y).detach()
-#         total_loss += loss
-#         f1_metric.update(logits, test_y)
+    # Iterate over batches
+    for batch_idx, (test_X, test_y, test_bbs) in enumerate(tqdm(loader)):
+        test_X.requires_grad = True
+        test_X = test_X.cuda()
+        test_y = test_y.cuda()
+        logits, features = model(test_X)
+        loss = loss_fn(logits, test_y).detach()
+        total_loss += loss
+        f1_metric.update(logits, test_y)
 
-#         # Compute attributions and update metrics
-#         if attributor:
-#             # Loop over images in batch
-#             for img_idx in range(len(test_X)):
-#                 # Get target class
-#                 class_target = torch.where(test_y[img_idx] == 1)[0]
+        # Compute attributions and update metrics
+        if attributor:
+            # Loop over images in batch
+            for img_idx in range(len(test_X)):
+                # Get target class
+                class_target = torch.where(test_y[img_idx] == 1)[0]
 
-#                 # Loop over target classes
-#                 for pred_idx, pred in enumerate(class_target):
-#                     # Compute attributions given the target class, logits, and features
-#                     attributions = (
-#                         attributor(features, logits, pred, img_idx)
-#                         .detach()
-#                         .squeeze(0)
-#                         .squeeze(0)
-#                     )
+                # Loop over target classes
+                for pred_idx, pred in enumerate(class_target):
+                    # Compute attributions given the target class, logits, and features
+                    attributions = (
+                        attributor(features, logits, pred, img_idx)
+                        .detach()
+                        .squeeze(0)
+                        .squeeze(0)
+                    )
 
-#                     # Create bounding box list
-#                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
+                    # Create bounding box list
+                    bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
                 # Get target class of the image
                 class_target = torch.where(test_y[img_idx] == 1)[0]
 
-#     # Compute F1 Score
-#     metric_vals = f1_metric.compute()
+    # Compute F1 Score
+    metric_vals = f1_metric.compute()
 
-#     # If attributor is not None, compute BB-Loc and BB-IoU metrics
-#     if attributor:
-#         bb_metric_vals = bb_metric.compute()
-#         iou_metric_vals = iou_metric.compute()
-#         metric_vals["BB-Loc"] = bb_metric_vals
-#         metric_vals["BB-IoU"] = iou_metric_vals
+    # If attributor is not None, compute BB-Loc and BB-IoU metrics
+    if attributor:
+        bb_metric_vals = bb_metric.compute()
+        iou_metric_vals = iou_metric.compute()
+        metric_vals["BB-Loc"] = bb_metric_vals
+        metric_vals["BB-IoU"] = iou_metric_vals
 
-#     # Compute Average Loss
-#     metric_vals["Average-Loss"] = total_loss.item() / num_batches
+    # Compute Average Loss
+    metric_vals["Average-Loss"] = total_loss.item() / num_batches
 
-                    # Update Bounding Box Energy metric and IoU metric
-                    bb_metric.update(attributions, bb_list)
-                    iou_metric.update(attributions, bb_list)
+    # Update Bounding Box Energy metric and IoU metric
+    bb_metric.update(attributions, bb_list)
+    iou_metric.update(attributions, bb_list)
 
-#     # Set model to training mode
-#     model.train()
+    # Set model to training mode
+    model.train()
 
-#     # Log metrics
-#     if writer is not None:
-#         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
-#         writer.add_scalar("accuracy", metric_vals["Accuracy"], epoch)
-#         writer.add_scalar("precision", metric_vals["Precision"], epoch)
-#         writer.add_scalar("recall", metric_vals["Recall"], epoch)
-#         writer.add_scalar("fscore", metric_vals["F-Score"], epoch)
-#         if attributor:
-#             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
-#             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
+    # Log metrics
+    if writer is not None:
+        writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
+        writer.add_scalar("accuracy", metric_vals["Accuracy"], epoch)
+        writer.add_scalar("precision", metric_vals["Precision"], epoch)
+        writer.add_scalar("recall", metric_vals["Recall"], epoch)
+        writer.add_scalar("fscore", metric_vals["F-Score"], epoch)
+        if attributor:
+            writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
+            writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
 
-#     return metric_vals
+    return metric_vals
 
 
 def main(args: argparse.Namespace):
