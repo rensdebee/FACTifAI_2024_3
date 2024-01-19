@@ -24,22 +24,35 @@ def eval_model(
     mode="bbs",
     vis_flag=False,
 ):
+    """ 
+    Evaluates a model, helper function of evaluation_function.
+    if mode is set to bbs: only bounding boxes are evaluated.
+    if mode is set to segment: The specail segment loader should be added.
+    
+    Returns: 
+        A dictionary with all evaluation metrics.
+    """
     model.eval()
+    
+    # create all metrics
     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
     bb_metric = metrics.BoundingBoxEnergyMultiple()
     seg_metric = metrics.SegmentEnergyMultiple()
     frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
     total_loss = 0
+    
+    # for every image, evaluate 
     for batch_idx, data in enumerate(tqdm(loader)):
         if mode == "bbs":
             test_X, test_y, test_bbs = data
-        elif mode == "segment":  # NEW
+        elif mode == "segment":
             test_X, test_y, test_segment, test_bbs = data
-            test_segment = test_segment.cuda()
+            test_segment = test_segment.cuda() # to GPU to do element wise matrix multiplication
         else:
             raise NotImplementedError
 
+        # push to GPU
         test_X.requires_grad = True
         test_X = test_X.cuda()
         test_y = test_y.cuda()
@@ -49,6 +62,7 @@ def eval_model(
         total_loss += loss
         f1_metric.update(logits, test_y)
 
+        # add metrics that are attributor specific
         if attributor:
             for img_idx, image in enumerate(test_X):
                 class_target = torch.where(test_y[img_idx] == 1)[0]
@@ -61,11 +75,12 @@ def eval_model(
                     )
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
-                    if len(bb_list) == 0:
+                    if len(bb_list) == 0:  # if no bounding boxes are found return
                         print(pred)
                         print(test_bbs[img_idx])
                         print(len(bb_list))
                         raise ValueError
+                    
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list, image, pred)
                     if mode == "segment":
@@ -81,13 +96,14 @@ def eval_model(
                             bb_coordinates=bb_list,
                         )
 
+    # finalize metric calculations, 
     metric_vals = f1_metric.compute()
     if attributor:
         bb_metric_vals = bb_metric.compute()
         iou_metric_vals = iou_metric.compute()
 
         metric_vals["BB-Loc"] = bb_metric_vals
-        if mode == "segment":  # NEW
+        if mode == "segment":
             seg_bb_metric_vals = seg_metric.compute()
             seg_bb_metric_frac = frac_metric.compute()
             metric_vals["BB-Loc-segment"] = seg_bb_metric_vals
@@ -98,6 +114,8 @@ def eval_model(
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
     print(f"Validation Metrics: {metric_vals}")
     model.train()
+    
+    # write to tensorboard
     if writer is not None:
         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
         writer.add_scalar("accuracy", metric_vals["Accuracy"], epoch)
@@ -128,7 +146,7 @@ def evaluation_function(
     Function which returns the metrics of a given model in model_path
     on certain data split.
 
-    Note this function does not save metrics in tensorboard log, use the
+    Note: this function does not save metrics in tensorboard log, use the
     commandine script for that functionality.
     """
     (
