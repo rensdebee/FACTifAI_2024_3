@@ -24,10 +24,10 @@ import re
 def main(args):
     root_dir = "./FT/VOC2007"
 
-    for base in os.listdir(root_dir):
-        base_path = os.path.join(root_dir, base)
+    # for base in os.listdir(root_dir):
+    #     base_path = os.path.join(root_dir, base)
 
-        for layer in os.listdir()
+    #     for layer in os.listdir()
 
     pareto_front_tracker_EPG = utils.ParetoFrontModels(epg=True, iou=False)
     pareto_front_tracker_IOU = utils.ParetoFrontModels(epg=False, iou=True)
