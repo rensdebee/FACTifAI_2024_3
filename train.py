@@ -102,14 +102,8 @@ from torchvision.transforms import v2
 #                     # Create bounding box list
 #                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
-<<<<<<< HEAD
                 # Get target class of the image
                 class_target = torch.where(test_y[img_idx] == 1)[0]
-=======
-#                     # Update Bounding Box Energy and IoU metrics
-#                     bb_metric.update(attributions, bb_list)
-#                     iou_metric.update(attributions, bb_list)
->>>>>>> 18256a8af70fb18095e627a86341dde3baa4d37d
 
 #     # Compute F1 Score
 #     metric_vals = f1_metric.compute()
