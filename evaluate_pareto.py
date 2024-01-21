@@ -78,11 +78,11 @@ evaluation_function(
     dataset="VOC2007",
     split="test",
     annotated_fraction=1,
-    log_path="metrics_per_model_vanilla/",
     mode="bbs",
     npz=True,
     vis_iou_thr_methods=False,
-    baseline=True
+    baseline=True,
+    save_npz_path="./p_curves/VOC2007/bcos/Baseline",
 )
 
 # baseline Vanilla
@@ -97,9 +97,9 @@ evaluation_function(
     dataset="VOC2007",
     split="test",
     annotated_fraction=1,
-    log_path="metrics_per_model_vanilla/",
     mode="bbs",
     npz=True,
     vis_iou_thr_methods=False,
-    baseline=True
+    baseline=True,
+    save_npz_path="./p_curves/VOC2007/vanilla/Baseline"
 )

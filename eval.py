@@ -197,7 +197,8 @@ def evaluation_function(model_path: str,
                         mode: str = "bbs",
                         npz: bool = False,
                         vis_iou_thr_methods: bool = False,
-                        baseline: bool = False) -> dict:
+                        baseline: bool = False,
+                        save_npz_path: Optional[str] = None) -> dict:
     """
     Evaluate a model's performance on a specific dataset split and return the metrics.
 
@@ -217,6 +218,7 @@ def evaluation_function(model_path: str,
         npz (bool): Flag to indicate whether to use NPZ for evaluation, defaults to False.
         vis_iou_thr_methods (bool): Flag to enable/disable visualization of IoU threshold methods, defaults to False.
         baseline (bool): Flag to indicate whether a baseline model is used for comparison, defaults to False.
+        save_npz_path (Optional[str]): Path to save the npz file, defaults to None.
 
     Returns:
         dict: A dictionary containing the evaluation metrics for the specified model and dataset split.
@@ -361,14 +363,14 @@ def evaluation_function(model_path: str,
     )
 
     # Save metrics as .npz file in log_path
-    if npz:
+    if npz and save_npz_path is not None:
 
         # Save metrics as .npz file in log_path
-        if not os.path.exists(log_path):
-            os.makedirs(log_path)
+        if not os.path.exists(save_npz_path):
+            os.makedirs(save_npz_path)
 
         # If pareto is true, add pareto and epoch tothe file name
-        if pareto:
+        if pareto and not baseline:
             if attribution_method:
                 epoch = model_path.split("_")[-1].split(".")[0]
                 npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Pareto_{epoch}.npz"
@@ -376,11 +378,16 @@ def evaluation_function(model_path: str,
                 npz_name = f"{dataset}_{split}_{model_backbone}_Pareto_{epoch}.npz"
 
         # If baseline is true, add baseline to the file name
-        elif baseline:
+        elif baseline and not pareto:
+
+            # in metrics rename F-Score to f_score, BB-Loc to bb_score, BB-IoU to iou_score
+            metric_vals["f_score"] = metric_vals.pop("F-Score")
+            metric_vals["bb_score"] = metric_vals.pop("BB-Loc")
+            metric_vals["iou_score"] = metric_vals.pop("BB-IoU")
 
             if attribution_method:
                 epoch = model_path.split("_")[-1].split(".")[0]
-                npz_name = f"{dataset}_{split}_{model_backbone}_{localization_loss_fn}_{layer}_{attribution_method}_Baseline.npz"
+                npz_name = f"{dataset}_{split}_{model_backbone}_{attribution_method}_Baseline.npz"
             else:
                 npz_name = f"{dataset}_{split}_{model_backbone}_Baseline.npz"
 
@@ -391,7 +398,7 @@ def evaluation_function(model_path: str,
                 npz_name = f"{dataset}_{split}_{model_backbone}.npz"
 
         # Create path to save .npz file
-        npz_path = os.path.join(log_path, npz_name)
+        npz_path = os.path.join(save_npz_path, npz_name)
 
         # Save .npz file
         np.savez(npz_path, **metric_vals)
