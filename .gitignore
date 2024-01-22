@@ -171,6 +171,7 @@ annotations/
 datasets/*.pt
 *.tar 
 *.pth
+*.gz
 FT/
 waterbird_1.0_forest2water2/
 WBBASE/
