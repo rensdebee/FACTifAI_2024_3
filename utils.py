@@ -79,7 +79,7 @@ def get_random_optimization_targets(targets):
 
 
 class ParetoFrontModels:
-    def __init__(self, epg = False, iou = False, bin_width=0.005):
+    def __init__(self, epg = True, iou = True, bin_width=0.005):
         super().__init__()
         self.bin_width = bin_width
         self.pareto_checkpoints = []
@@ -87,10 +87,16 @@ class ParetoFrontModels:
         self.epg = epg
         self.iou = iou
 
-    def update(self, model, metric_dict, epoch, sll):
+    def update(self, model, metric_dict, epoch, sll=None):
         metric_vals = copy.deepcopy(metric_dict)
         state_dict = copy.deepcopy(model.state_dict())
-        metric_vals.update({"model": state_dict, "epochs": epoch + 1, "sll": sll})
+
+        self.sll = sll
+
+        if sll is not None:
+            metric_vals.update({"model": state_dict, "epochs": epoch + 1, "sll": sll})
+        else:
+            metric_vals.update({"model": state_dict, "epochs": epoch + 1})
         self.pareto_checkpoints.append(metric_vals)
 
         # Which metrics to evaluate in making a pareto front        
@@ -138,7 +144,10 @@ class ParetoFrontModels:
             bb_score = self.pareto_checkpoints[idx]["BB-Loc"]
             iou_score = self.pareto_checkpoints[idx]["BB-IoU"]
             epoch = self.pareto_checkpoints[idx]["epochs"]
-            sll = self.pareto_checkpoints[idx]["sll"]
+            if self.sll is not None:
+                sll = self.pareto_checkpoints[idx]["sll"]
+            else:
+                sll = None
 
             if self.epg and self.iou:
                 method = "EPG_IOU"
