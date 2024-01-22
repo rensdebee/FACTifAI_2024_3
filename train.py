@@ -34,6 +34,7 @@ from typing import Any, Callable, Optional
 from eval import eval_model
 from torchvision.transforms import v2
 
+
 def eval_model(
     model: torch.nn.Module,
     attributor: Any,
@@ -102,8 +103,16 @@ def eval_model(
                     # Create bounding box list
                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
-                # Get target class of the image
-                class_target = torch.where(test_y[img_idx] == 1)[0]
+                    # if no bounding boxes are found return
+                    if len(bb_list) == 0:
+                        print(pred)
+                        print(test_bbs[img_idx])
+                        print(len(bb_list))
+                        raise ValueError
+
+                    # Update Bounding Box Energy metric and IoU metric
+                    bb_metric.update(attributions, bb_list)
+                    iou_metric.update(attributions, bb_list)
 
     # Compute F1 Score
     metric_vals = f1_metric.compute()
