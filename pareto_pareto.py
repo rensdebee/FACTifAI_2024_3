@@ -29,9 +29,9 @@ def main(args):
         base_path = os.path.join(root_dir, base)
 
         for layer in os.listdir(base_path):
-            # #TODO WEG
-            if layer == "fin":
-                continue
+            # # #TODO WEG
+            # if layer == "fin":
+            #     continue
             layer_path = os.path.join(base_path, layer)
             # print(layer_path)
 
