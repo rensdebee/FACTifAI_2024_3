@@ -201,7 +201,7 @@ class UnNormalize(torchvision.transforms.Normalize):
 
 def get_class_name(class_num):
     """
-    Function to map from class number back to classname
+    Function to map from class number back to classname (VOC2007)
     """
     target_dict = {
         "aeroplane": 0,

@@ -23,6 +23,7 @@ def eval_model(
     epoch=None,
     mode="bbs",
     vis_flag=False,
+    return_per_class=False,
 ):
     """ 
     Evaluates a model, helper function of evaluation_function.
@@ -43,6 +44,7 @@ def eval_model(
     total_loss = 0
     
     # for every image, evaluate 
+    labels = []
     for batch_idx, data in enumerate(tqdm(loader)):
         if mode == "bbs":
             test_X, test_y, test_bbs = data
@@ -95,24 +97,27 @@ def eval_model(
                             label=pred + 1,
                             bb_coordinates=bb_list,
                         )
+                        
+                        labels.append(pred)
 
-    # finalize metric calculations, 
+    # finalize metric calculations
     metric_vals = f1_metric.compute()
     if attributor:
-        bb_metric_vals = bb_metric.compute()
-        iou_metric_vals = iou_metric.compute()
+        bb_metric_vals = bb_metric.fractions if return_per_class else bb_metric.compute()
+        iou_metric_vals = iou_metric.fractions if return_per_class else iou_metric.compute()
 
         metric_vals["BB-Loc"] = bb_metric_vals
         if mode == "segment":
-            seg_bb_metric_vals = seg_metric.compute()
-            seg_bb_metric_frac = frac_metric.compute()
+            seg_bb_metric_vals = seg_metric.fractions if return_per_class else seg_metric.compute()
+            seg_bb_metric_frac = frac_metric.fractions if return_per_class else frac_metric.compute()
             metric_vals["BB-Loc-segment"] = seg_bb_metric_vals
             metric_vals["BB-Loc-Fraction"] = seg_bb_metric_frac
 
         metric_vals["BB-IoU"] = iou_metric_vals
 
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
-    print(f"Validation Metrics: {metric_vals}")
+    if not return_per_class:
+        print(f"Validation Metrics: {metric_vals}")
     model.train()
     
     # write to tensorboard
@@ -125,7 +130,7 @@ def eval_model(
         if attributor:
             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
-    return metric_vals
+    return (metric_vals, labels) if return_per_class else metric_vals
 
 
 def evaluation_function(
@@ -141,6 +146,7 @@ def evaluation_function(
     mode="bbs",
     npz=False,
     vis_iou_thr_methods=False,
+    return_per_class=False,
 ):
     """
     Function which returns the metrics of a given model in model_path
@@ -271,6 +277,7 @@ def evaluation_function(
         1,
         mode=mode,
         vis_flag=vis_iou_thr_methods,
+        return_per_class=return_per_class,
     )
     if npz:
         # Save metrics as .npz file in log_path
