@@ -1,0 +1,22 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=FinteTuneBCosEnergyPc10Pc1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=12:00:00
+#SBATCH --output=./slurms/FT_BCOS_ENERGY_PC10_PC1_%A.out
+
+module purge
+module load 2022
+module load Anaconda3/2022.05
+source activate FACTifAI
+
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 5e-4 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.1 --pareto_metric EPG
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 1e-3 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.1 --pareto_metric EPG
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 5e-3 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.1 --pareto_metric EPG
+
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 5e-4 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.01 --pareto_metric EPG
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 1e-3 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.01 --pareto_metric EPG
+python train.py --localization_loss_fn Energy --layer Input --localization_loss_lambda 5e-3 --save_path ./FT --model_backbone bcos --total_epochs 50 --learning_rate 1e-4 --log_path ./ft_logs --train_batch_size 64 --dataset VOC2007   --attribution_method BCos --optimize_explanations --pareto --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt --annotated_fraction 0.01 --pareto_metric EPG

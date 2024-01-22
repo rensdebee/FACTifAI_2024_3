@@ -25,16 +25,19 @@ import numpy as np
 from typing import Any, Callable, Optional
 
 
-def eval_model(model: torch.nn.Module,
-               attributor: Any,
-               loader: torch.utils.data.DataLoader,
-               num_batches: int,
-               num_classes: int,
-               loss_fn: Callable,
-               writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
-               epoch: Optional[int] = None,
-               mode: str = "bbs",
-               vis_flag: bool = False) -> dict:
+def eval_model(
+    model: torch.nn.Module,
+    attributor: Any,
+    loader: torch.utils.data.DataLoader,
+    num_batches: int,
+    num_classes: int,
+    loss_fn: Callable,
+    writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
+    epoch: Optional[int] = None,
+    mode: str = "bbs",
+    vis_flag: bool = False,
+    return_per_class: bool = False,
+) -> dict:
     """
     Evaluate a model using specified parameters and return a dictionary of metrics.
 
@@ -60,20 +63,21 @@ def eval_model(model: torch.nn.Module,
 
     # Set model to eval mode
     model.eval()
-    
+
     # Initialize metrics
     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
     bb_metric = metrics.BoundingBoxEnergyMultiple()
     seg_metric = metrics.SegmentEnergyMultiple()
     frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
+    adapative_iou_metric = metrics.BoundingBoxIoUAdapative()
 
     # Initialize total loss
     total_loss = 0
-    
-    # Iterate over batches
-    for batch_idx, data in enumerate(tqdm(loader)):
 
+    # for every image, evaluate
+    labels = []
+    for batch_idx, data in enumerate(tqdm(loader)):
         # Check if the mode is bounding boxes or segmentation
         if mode == "bbs":
             test_X, test_y, test_bbs = data
@@ -81,7 +85,7 @@ def eval_model(model: torch.nn.Module,
             test_X, test_y, test_segment, test_bbs = data
 
             # Set to GPU to do element wise matrix multiplication
-            test_segment = test_segment.cuda() 
+            test_segment = test_segment.cuda()
         else:
             raise NotImplementedError
 
@@ -89,6 +93,8 @@ def eval_model(model: torch.nn.Module,
         test_X.requires_grad = True
         test_X = test_X.cuda()
         test_y = test_y.cuda()
+        if len(test_y.shape) == 1:
+            test_y = test_y.unsqueeze(dim=1)
         logits, features = model(test_X)
 
         # Calculate loss
@@ -98,16 +104,13 @@ def eval_model(model: torch.nn.Module,
 
         # Compute attributions and update metrics
         if attributor:
-
             # Loop over images in batch
             for img_idx, image in enumerate(test_X):
-
                 # Get target class of the image
                 class_target = torch.where(test_y[img_idx] == 1)[0]
 
                 # Loop over target classes
                 for pred_idx, pred in enumerate(class_target):
-
                     # Compute attributions given the target class, logits and features
                     attributions = (
                         attributor(features, logits, pred, img_idx)
@@ -125,10 +128,11 @@ def eval_model(model: torch.nn.Module,
                         print(test_bbs[img_idx])
                         print(len(bb_list))
                         raise ValueError
-                    
+
                     # Update Bounding Box Energy metric and IoU metric
                     bb_metric.update(attributions, bb_list)
-                    iou_metric.update(attributions, bb_list, image, pred)
+                    iou_metric.update(attributions, bb_list, image, pred, img_idx)
+                    adapative_iou_metric.update(attributions, bb_list)
 
                     # Update segmentation metrics if mode is segmentation
                     if mode == "segment":
@@ -145,32 +149,42 @@ def eval_model(model: torch.nn.Module,
                             bb_coordinates=bb_list,
                         )
 
-    # Compute F1 metric
+                        labels.append(pred)
+
+    # finalize metric calculations
     metric_vals = f1_metric.compute()
 
     # If attributor is not None, compute BB-Loc and BB-IoU metrics
     if attributor:
-        bb_metric_vals = bb_metric.compute()
-        iou_metric_vals = iou_metric.compute()
+        bb_metric_vals = (
+            bb_metric.fractions if return_per_class else bb_metric.compute()
+        )
+        iou_metric_vals = (
+            iou_metric.fractions if return_per_class else iou_metric.compute()
+        )
+        adapative_iou_metric_vals = adapative_iou_metric.compute()
+
         metric_vals["BB-Loc"] = bb_metric_vals
         metric_vals["BB-IoU"] = iou_metric_vals
+        metric_vals["BB-IoU-Adapt"] = adapative_iou_metric_vals
 
         # If mode is segmentation, compute BB-Loc-segment and BB-Loc-Fraction metrics
         if mode == "segment":
-            seg_bb_metric_vals = seg_metric.compute()
-            seg_bb_metric_frac = frac_metric.compute()
+            seg_bb_metric_vals = (
+                seg_metric.fractions if return_per_class else seg_metric.compute()
+            )
+            seg_bb_metric_frac = (
+                frac_metric.fractions if return_per_class else frac_metric.compute()
+            )
             metric_vals["BB-Loc-segment"] = seg_bb_metric_vals
             metric_vals["BB-Loc-Fraction"] = seg_bb_metric_frac
 
     # Compute average loss
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
-
-    # Print metrics
-    print(f"Validation Metrics: {metric_vals}")
-
-    # Set model back to train mode
+    if not return_per_class:
+        print(f"Validation Metrics: {metric_vals}")
     model.train()
-    
+
     # Log metrics to tensorboard
     if writer is not None:
         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
@@ -181,24 +195,27 @@ def eval_model(model: torch.nn.Module,
         if attributor:
             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
+            writer.add_scalar("bbiouadapt", metric_vals["BB-IoU-Adapt"], epoch)
+    return (metric_vals, labels) if return_per_class else metric_vals
 
-    return metric_vals
 
-
-def evaluation_function(model_path: str,
-                        fix_layer: Optional[str] = None,
-                        pareto: bool = False,
-                        eval_batch_size: int = 4,
-                        data_path: str = "datasets/",
-                        dataset: str = "VOC2007",
-                        split: str = "test",
-                        annotated_fraction: float = 1,
-                        log_path: Optional[str] = None,
-                        mode: str = "bbs",
-                        npz: bool = False,
-                        vis_iou_thr_methods: bool = False,
-                        baseline: bool = False,
-                        save_npz_path: Optional[str] = None) -> dict:
+def evaluation_function(
+    model_path: str,
+    fix_layer: Optional[str] = None,
+    pareto: bool = False,
+    eval_batch_size: int = 4,
+    data_path: str = "datasets/",
+    dataset: str = "VOC2007",
+    split: str = "test",
+    annotated_fraction: float = 1,
+    log_path: Optional[str] = None,
+    mode: str = "bbs",
+    npz: bool = False,
+    vis_iou_thr_methods: bool = False,
+    return_per_class: bool = False,
+    baseline: bool = False,
+    save_npz_path: Optional[str] = None,
+) -> dict:
     """
     Evaluate a model's performance on a specific dataset split and return the metrics.
 
@@ -360,11 +377,11 @@ def evaluation_function(model_path: str,
         1,
         mode=mode,
         vis_flag=vis_iou_thr_methods,
+        return_per_class=return_per_class,
     )
 
     # Save metrics as .npz file in log_path
     if npz and save_npz_path is not None:
-
         # Save metrics as .npz file in log_path
         if not os.path.exists(save_npz_path):
             os.makedirs(save_npz_path)
@@ -379,7 +396,6 @@ def evaluation_function(model_path: str,
 
         # If baseline is true, add baseline to the file name
         elif baseline and not pareto:
-
             # in metrics rename F-Score to f_score, BB-Loc to bb_score, BB-IoU to iou_score
             metric_vals["f_score"] = metric_vals.pop("F-Score")
             metric_vals["bb_score"] = metric_vals.pop("BB-Loc")

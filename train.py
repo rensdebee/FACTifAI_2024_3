@@ -34,109 +34,120 @@ from typing import Any, Callable, Optional
 from eval import eval_model
 from torchvision.transforms import v2
 
-def eval_model(
-    model: torch.nn.Module,
-    attributor: Any,
-    loader: torch.utils.data.DataLoader,
-    num_batches: int,
-    num_classes: int,
-    loss_fn: Callable,
-    writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
-    epoch: Optional[int] = None,
-) -> dict:
-    """
-    Evaluate a model given a dataloader and an attribution method.
 
-    Args:
-        model (torch.nn.Module): The model to be evaluated.
-        attributor (Any): An object or a function used for attribution, specific to the model's framework.
-        loader (torch.utils.data.DataLoader): DataLoader object for loading the dataset.
-        num_batches (int): Number of batches to evaluate the model on.
-        num_classes (int): Number of classes in the classification task.
-        loss_fn (Callable): Loss function used for evaluation.
-        writer (Optional[torch.utils.tensorboard.writer.SummaryWriter]): Tensorboard writer for logging purposes. Defaults to None.
-        epoch (Optional[int]): Current epoch number, used for logging. Defaults to None.
+# def eval_model(
+#     model: torch.nn.Module,
+#     attributor: Any,
+#     loader: torch.utils.data.DataLoader,
+#     num_batches: int,
+#     num_classes: int,
+#     loss_fn: Callable,
+#     writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
+#     epoch: Optional[int] = None,
+# ) -> dict:
+#     """
+#     Evaluate a model given a dataloader and an attribution method.
 
-    Returns:
-        dict: A dictionary containing evaluation metrics such as accuracy and loss.
-    """
+#     Args:
+#         model (torch.nn.Module): The model to be evaluated.
+#         attributor (Any): An object or a function used for attribution, specific to the model's framework.
+#         loader (torch.utils.data.DataLoader): DataLoader object for loading the dataset.
+#         num_batches (int): Number of batches to evaluate the model on.
+#         num_classes (int): Number of classes in the classification task.
+#         loss_fn (Callable): Loss function used for evaluation.
+#         writer (Optional[torch.utils.tensorboard.writer.SummaryWriter]): Tensorboard writer for logging purposes. Defaults to None.
+#         epoch (Optional[int]): Current epoch number, used for logging. Defaults to None.
 
-    # Set model to evaluation mode
-    model.eval()
+#     Returns:
+#         dict: A dictionary containing evaluation metrics such as accuracy and loss.
+#     """
 
-    # Initialize metrics
-    f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
-    bb_metric = metrics.BoundingBoxEnergyMultiple()
-    iou_metric = metrics.BoundingBoxIoUMultiple()
+#     # Set model to evaluation mode
+#     model.eval()
 
-    # Initialize total loss
-    total_loss = 0
+#     # Initialize metrics
+#     f1_metric = metrics.MultiLabelMetrics(num_classes=num_classes, threshold=0.0)
+#     bb_metric = metrics.BoundingBoxEnergyMultiple()
+#     iou_metric = metrics.BoundingBoxIoUMultiple()
 
-    # Iterate over batches
-    for batch_idx, (test_X, test_y, test_bbs) in enumerate(tqdm(loader)):
-        test_X.requires_grad = True
-        test_X = test_X.cuda()
-        test_y = test_y.cuda()
-        logits, features = model(test_X)
-        loss = loss_fn(logits, test_y).detach()
-        total_loss += loss
-        f1_metric.update(logits, test_y)
+#     # Initialize total loss
+#     total_loss = 0
 
-        # Compute attributions and update metrics
-        if attributor:
-            # Loop over images in batch
-            for img_idx in range(len(test_X)):
-                # Get target class
-                class_target = torch.where(test_y[img_idx] == 1)[0]
+#     # Iterate over batches
+#     for batch_idx, (test_X, test_y, test_bbs) in enumerate(tqdm(loader)):
+#         test_X.requires_grad = True
+#         test_X = test_X.cuda()
+#         test_y = test_y.cuda()
+#         if len(test_y.shape) == 1:
+#                 test_y = test_y.unsqueeze(dim=1)
+#         logits, features = model(test_X)
+#         loss = loss_fn(logits, test_y).detach()
+#         total_loss += loss
+#         f1_metric.update(logits, test_y)
 
-                # Loop over target classes
-                for pred_idx, pred in enumerate(class_target):
-                    # Compute attributions given the target class, logits, and features
-                    attributions = (
-                        attributor(features, logits, pred, img_idx)
-                        .detach()
-                        .squeeze(0)
-                        .squeeze(0)
-                    )
+#         # Compute attributions and update metrics
+#         if attributor:
+#             # Loop over images in batch
+#             for img_idx in range(len(test_X)):
+#                 # Get target class
+#                 class_target = torch.where(test_y[img_idx] == 1)[0]
 
-                    # Create bounding box list
-                    bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
+#                 # Loop over target classes
+#                 for pred_idx, pred in enumerate(class_target):
+#                     # Compute attributions given the target class, logits, and features
+#                     attributions = (
+#                         attributor(features, logits, pred, img_idx)
+#                         .detach()
+#                         .squeeze(0)
+#                         .squeeze(0)
+#                     )
 
-                # Get target class of the image
-                class_target = torch.where(test_y[img_idx] == 1)[0]
+#                     # Create bounding box list
+#                     bb_list = utils.filter_bbs(test_bbs[img_idx], pred)
 
-    # Compute F1 Score
-    metric_vals = f1_metric.compute()
+#                     # if no bounding boxes are found return
+#                     if len(bb_list) == 0:
+#                         print(pred)
+#                         print(test_bbs[img_idx])
+#                         print(len(bb_list))
+#                         raise ValueError
 
-    # If attributor is not None, compute BB-Loc and BB-IoU metrics
-    if attributor:
-        bb_metric_vals = bb_metric.compute()
-        iou_metric_vals = iou_metric.compute()
-        metric_vals["BB-Loc"] = bb_metric_vals
-        metric_vals["BB-IoU"] = iou_metric_vals
+#                     # Update Bounding Box Energy metric and IoU metric
+#                     bb_metric.update(attributions, bb_list)
+#                     iou_metric.update(attributions, bb_list)
 
-    # Compute Average Loss
-    metric_vals["Average-Loss"] = total_loss.item() / num_batches
+#     # Compute F1 Score
+#     metric_vals = f1_metric.compute()
 
-    # Update Bounding Box Energy metric and IoU metric
-    bb_metric.update(attributions, bb_list)
-    iou_metric.update(attributions, bb_list)
+#     # If attributor is not None, compute BB-Loc and BB-IoU metrics
+#     if attributor:
+#         bb_metric_vals = bb_metric.compute()
+#         iou_metric_vals = iou_metric.compute()
+#         metric_vals["BB-Loc"] = bb_metric_vals
+#         metric_vals["BB-IoU"] = iou_metric_vals
 
-    # Set model to training mode
-    model.train()
+#     # Compute Average Loss
+#     metric_vals["Average-Loss"] = total_loss.item() / num_batches
 
-    # Log metrics
-    if writer is not None:
-        writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
-        writer.add_scalar("accuracy", metric_vals["Accuracy"], epoch)
-        writer.add_scalar("precision", metric_vals["Precision"], epoch)
-        writer.add_scalar("recall", metric_vals["Recall"], epoch)
-        writer.add_scalar("fscore", metric_vals["F-Score"], epoch)
-        if attributor:
-            writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
-            writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
+#     # Update Bounding Box Energy metric and IoU metric
+#     bb_metric.update(attributions, bb_list)
+#     iou_metric.update(attributions, bb_list)
 
-    return metric_vals
+#     # Set model to training mode
+#     model.train()
+
+#     # Log metrics
+#     if writer is not None:
+#         writer.add_scalar("val_loss", total_loss.item() / num_batches, epoch)
+#         writer.add_scalar("accuracy", metric_vals["Accuracy"], epoch)
+#         writer.add_scalar("precision", metric_vals["Precision"], epoch)
+#         writer.add_scalar("recall", metric_vals["Recall"], epoch)
+#         writer.add_scalar("fscore", metric_vals["F-Score"], epoch)
+#         if attributor:
+#             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
+#             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
+
+#     return metric_vals
 
 
 def main(args: argparse.Namespace):
@@ -217,8 +228,8 @@ def main(args: argparse.Namespace):
         "finetunedobjloc" if args.optimize_explanations else "standard"
     )
     optimize_explanation_str += "pareto" if args.pareto else ""
-    optimize_explanation_str += "limited" if args.annotated_fraction < 1.0 else ""
-    optimize_explanation_str += "dilated" if args.box_dilation_percentage > 0 else ""
+    optimize_explanation_str += "_limited" if args.annotated_fraction < 1.0 else ""
+    optimize_explanation_str += "_dilated" if args.box_dilation_percentage > 0 else ""
 
     # Get save path
     out_name = (
@@ -379,8 +390,26 @@ def main(args: argparse.Namespace):
         eval_attributor = None
 
     # If pareto is True, create Pareto front tracker
+    # With the corresponding metric (F1 vs args.pareto_metric) to base the front on
     if args.pareto:
-        pareto_front_tracker = utils.ParetoFrontModels()
+        # Create a pareto front based on both IOU and EPG seperately VS F1
+        if args.pareto_metric == "seperate":
+            pareto_front_tracker_EPG = utils.ParetoFrontModels(epg=True, iou=False)
+            pareto_front_tracker_IOU = utils.ParetoFrontModels(epg=False, iou=True)
+        else:
+            # Pareto front of IOU and EPG as one combined vs F1
+            if args.pareto_metric == "EPG_IOU":
+                epg = True
+                iou = True
+            # Pareto front created with just EPG vs F1
+            elif args.pareto_metric == "EPG":
+                epg = True
+                iou = False
+            # Pareto front created with just IOU vs F1
+            elif args.pareto_metric == "IOU":
+                epg = False
+                iou = True
+            pareto_front_tracker = utils.ParetoFrontModels(epg=epg, iou=iou)
 
     # Train model for total_epochs epochs
     for e in tqdm(range(args.total_epochs)):
@@ -475,7 +504,11 @@ def main(args: argparse.Namespace):
 
             # If pareto is True, update Pareto front tracker
             if args.pareto:
-                pareto_front_tracker.update(model, metric_vals, e)
+                if args.pareto_metric == "seperate":
+                    pareto_front_tracker_EPG.update(model, metric_vals, e)
+                    pareto_front_tracker_IOU.update(model, metric_vals, e)
+                else:
+                    pareto_front_tracker.update(model, metric_vals, e)
 
             # Get best F-Score
             best_fscore, _, _, _ = f1_tracker.get_best()
@@ -500,7 +533,11 @@ def main(args: argparse.Namespace):
 
                 # If pareto is True, save Pareto front
                 if args.pareto:
-                    pareto_front_tracker.save_pareto_front(save_path)
+                    if args.pareto_metric == "seperate":
+                        pareto_front_tracker_EPG.save_pareto_front(save_path)
+                        pareto_front_tracker_IOU.save_pareto_front(save_path)
+                    else:
+                        pareto_front_tracker.save_pareto_front(save_path)
                 return
 
             # Update metric values
@@ -508,7 +545,11 @@ def main(args: argparse.Namespace):
 
     # If pareto is True, save Pareto front
     if args.pareto:
-        pareto_front_tracker.save_pareto_front(save_path)
+        if args.pareto_metric == "seperate":
+            pareto_front_tracker_EPG.save_pareto_front(save_path)
+            pareto_front_tracker_IOU.save_pareto_front(save_path)
+        else:
+            pareto_front_tracker.save_pareto_front(save_path)
 
     # Calculate final metrics
     final_metric_vals = metric_vals
@@ -677,6 +718,13 @@ if __name__ == "__main__":
         type=float,
         default=0,
         help="Fraction of dilation to use for bounding boxes when training.",
+    )
+    parser.add_argument(
+        "--pareto_metric",
+        type=str,
+        default="EPG_IOU",
+        choices=["EPG_IOU", "EPG", "IOU", "seperate"],
+        help="Select the metric to create a pareto front with -> F1 vs choice. EPG_IOU evaluates both metrics as one, while [seperate] evaluates both metrics seperate.",
     )
     args = parser.parse_args()
     main(args)
