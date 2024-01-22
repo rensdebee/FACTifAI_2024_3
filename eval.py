@@ -34,7 +34,8 @@ def eval_model(model: torch.nn.Module,
                writer: Optional[torch.utils.tensorboard.writer.SummaryWriter] = None,
                epoch: Optional[int] = None,
                mode: str = "bbs",
-               vis_flag: bool = False) -> dict:
+               vis_flag: bool = False,
+               return_per_class: bool = False,) -> dict:
     """
     Evaluate a model using specified parameters and return a dictionary of metrics.
 
@@ -71,7 +72,8 @@ def eval_model(model: torch.nn.Module,
     # Initialize total loss
     total_loss = 0
     
-    # Iterate over batches
+    # for every image, evaluate 
+    labels = []
     for batch_idx, data in enumerate(tqdm(loader)):
 
         # Check if the mode is bounding boxes or segmentation
@@ -144,31 +146,31 @@ def eval_model(model: torch.nn.Module,
                             label=pred + 1,
                             bb_coordinates=bb_list,
                         )
+                        
+                        labels.append(pred)
 
-    # Compute F1 metric
+    # finalize metric calculations
     metric_vals = f1_metric.compute()
 
     # If attributor is not None, compute BB-Loc and BB-IoU metrics
     if attributor:
-        bb_metric_vals = bb_metric.compute()
-        iou_metric_vals = iou_metric.compute()
+        bb_metric_vals = bb_metric.fractions if return_per_class else bb_metric.compute()
+        iou_metric_vals = iou_metric.fractions if return_per_class else iou_metric.compute()
+
         metric_vals["BB-Loc"] = bb_metric_vals
         metric_vals["BB-IoU"] = iou_metric_vals
 
         # If mode is segmentation, compute BB-Loc-segment and BB-Loc-Fraction metrics
         if mode == "segment":
-            seg_bb_metric_vals = seg_metric.compute()
-            seg_bb_metric_frac = frac_metric.compute()
+            seg_bb_metric_vals = seg_metric.fractions if return_per_class else seg_metric.compute()
+            seg_bb_metric_frac = frac_metric.fractions if return_per_class else frac_metric.compute()
             metric_vals["BB-Loc-segment"] = seg_bb_metric_vals
             metric_vals["BB-Loc-Fraction"] = seg_bb_metric_frac
 
     # Compute average loss
     metric_vals["Average-Loss"] = total_loss.item() / num_batches
-
-    # Print metrics
-    print(f"Validation Metrics: {metric_vals}")
-
-    # Set model back to train mode
+    if not return_per_class:
+        print(f"Validation Metrics: {metric_vals}")
     model.train()
     
     # Log metrics to tensorboard
@@ -181,8 +183,7 @@ def eval_model(model: torch.nn.Module,
         if attributor:
             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
-
-    return metric_vals
+    return (metric_vals, labels) if return_per_class else metric_vals
 
 
 def evaluation_function(model_path: str,
@@ -197,6 +198,7 @@ def evaluation_function(model_path: str,
                         mode: str = "bbs",
                         npz: bool = False,
                         vis_iou_thr_methods: bool = False,
+                        return_per_class: bool = False,
                         baseline: bool = False,
                         save_npz_path: Optional[str] = None) -> dict:
     """
@@ -360,6 +362,7 @@ def evaluation_function(model_path: str,
         1,
         mode=mode,
         vis_flag=vis_iou_thr_methods,
+        return_per_class=return_per_class,
     )
 
     # Save metrics as .npz file in log_path
