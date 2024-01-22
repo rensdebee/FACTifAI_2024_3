@@ -172,4 +172,7 @@ datasets/*.pt
 *.tar 
 *.pth
 FT/
+waterbird_1.0_forest2water2/
+WBBASE/
+WBbl/
 

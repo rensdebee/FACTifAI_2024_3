@@ -79,20 +79,34 @@ def get_random_optimization_targets(targets):
 
 
 class ParetoFrontModels:
-    def __init__(self, bin_width=0.005):
+    def __init__(self, epg = False, iou = False, bin_width=0.005):
         super().__init__()
         self.bin_width = bin_width
         self.pareto_checkpoints = []
         self.pareto_costs = []
+        self.epg = epg
+        self.iou = iou
 
-    def update(self, model, metric_dict, epoch):
+    def update(self, model, metric_dict, epoch, sll):
         metric_vals = copy.deepcopy(metric_dict)
         state_dict = copy.deepcopy(model.state_dict())
-        metric_vals.update({"model": state_dict, "epochs": epoch + 1})
+        metric_vals.update({"model": state_dict, "epochs": epoch + 1, "sll": sll})
         self.pareto_checkpoints.append(metric_vals)
-        self.pareto_costs.append(
-            [metric_vals["F-Score"], metric_vals["BB-Loc"], metric_vals["BB-IoU"]]
-        )
+
+        # Which metrics to evaluate in making a pareto front        
+        if self.epg and self.iou:
+            self.pareto_costs.append(
+                [metric_vals["F-Score"], metric_vals["BB-Loc"], metric_vals["BB-IoU"]]
+            )
+        elif self.epg:
+            self.pareto_costs.append(
+                [metric_vals["F-Score"], metric_vals["BB-Loc"]]
+            )
+        elif self.iou:
+            self.pareto_costs.append(
+                [metric_vals["F-Score"], metric_vals["BB-IoU"]]
+            )
+
         efficient_indices = self.is_pareto_efficient(
             -np.round(np.array(self.pareto_costs) / self.bin_width, 0) * self.bin_width,
             return_mask=False,
@@ -104,13 +118,19 @@ class ParetoFrontModels:
         print(f"Current Pareto Front Size: {len(self.pareto_checkpoints)}")
         pareto_str = ""
         for idx, cost in enumerate(self.pareto_costs):
-            pareto_str += f"({cost[0]:.4f},{cost[1]:.4f},{cost[2]:.4f},{self.pareto_checkpoints[idx]['epochs']})"
+            # Which evaluated metrics for the pareto front to print        
+            if self.epg and self.iou:
+                pareto_str += f"(F1:{cost[0]:.4f}, EPG:{cost[1]:.4f}, IOU:{cost[2]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
+            elif self.epg:
+                pareto_str += f"(F1:{cost[0]:.4f}, EPG:{cost[1]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
+            elif self.iou:
+                pareto_str += f"(F1:{cost[0]:.4f}, IOU:{cost[1]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
         print(f"Pareto Costs: {pareto_str}")
 
     def get_pareto_front(self):
         return self.pareto_checkpoints, self.pareto_costs
 
-    def save_pareto_front(self, save_path):
+    def save_pareto_front(self, save_path, npz=False):
         augmented_path = os.path.join(save_path, "pareto_front")
         os.makedirs(augmented_path, exist_ok=True)
         for idx in range(len(self.pareto_checkpoints)):
@@ -118,13 +138,27 @@ class ParetoFrontModels:
             bb_score = self.pareto_checkpoints[idx]["BB-Loc"]
             iou_score = self.pareto_checkpoints[idx]["BB-IoU"]
             epoch = self.pareto_checkpoints[idx]["epochs"]
+            sll = self.pareto_checkpoints[idx]["sll"]
+
+            if self.epg and self.iou:
+                method = "EPG_IOU"
+            elif self.epg:
+                method = "EPG"
+            elif self.iou:
+                method = "IOU" 
+
             torch.save(
                 self.pareto_checkpoints[idx],
                 os.path.join(
                     augmented_path,
-                    f"model_checkpoint_pareto_{f_score:.4f}_{bb_score:.4f}_{iou_score:.4f}_{epoch}.pt",
+                    f"test_pareto_ch_{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_MOD{epoch}.pt",
                 ),
             )
+            if npz:
+                # Save as npz
+                npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
+                npz_path = os.path.join(save_path, npz_name)
+                np.savez(npz_path, f_score=f_score, bb_score=bb_score, iou_score=iou_score, sll=sll)
 
     def is_pareto_efficient(self, costs, return_mask=True):
         """
@@ -135,16 +169,29 @@ class ParetoFrontModels:
             If return_mask is True, this will be an(n_points, ) boolean array
             Otherwise it will be a(n_efficient_points, ) integer array of indices.
         """
+
+        # Create an array of `n_points` indices containing all the points in the frontier
         is_efficient = np.arange(costs.shape[0])
         n_points = costs.shape[0]
-        next_point_index = 0  # Next index in the is_efficient array to search for
+
+        # Next index in the is_efficient array to search for
+        next_point_index = 0 
+
+        # Loop through all the points
         while next_point_index < len(costs):
+
+            # Get the nondominated point mask of the next point
             nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
+
+            # If next_point_index is nondominated
             nondominated_point_mask[next_point_index] = True
+
             # Remove dominated points
             is_efficient = is_efficient[nondominated_point_mask]
             costs = costs[nondominated_point_mask]
             next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
+
+        # Return mask or index
         if return_mask:
             is_efficient_mask = np.zeros(n_points, dtype=bool)
             is_efficient_mask[is_efficient] = True
@@ -230,6 +277,35 @@ def get_class_name(class_num):
             return key
 
     return "class doesn't exist"
+
+
+def get_class_number(class_name):
+    """
+    Function to map from class number back to classname
+    """
+    target_dict = {
+        "aeroplane": 0,
+        "bicycle": 1,
+        "bird": 2,
+        "boat": 3,
+        "bottle": 4,
+        "bus": 5,
+        "car": 6,
+        "cat": 7,
+        "chair": 8,
+        "cow": 9,
+        "diningtable": 10,
+        "dog": 11,
+        "horse": 12,
+        "motorbike": 13,
+        "person": 14,
+        "pottedplant": 15,
+        "sheep": 16,
+        "sofa": 17,
+        "train": 18,
+        "tvmonitor": 19,
+    }
+    return target_dict[class_name]
 
 
 def get_model_specs(path):
@@ -340,7 +416,7 @@ def get_model(
         model=model, layer=layer_idx, is_bcos=is_bcos
     )
 
-    # If neede get atribution method to calculate atribution maps
+    # If needed get atribution method to calculate atribution maps
     if attribution_method:
         interpolate = True if layer_idx is not None else False
         attributor = attribution_methods.get_attributor(
