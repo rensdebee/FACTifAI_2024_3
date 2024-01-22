@@ -137,6 +137,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             )
         # Set index of image visualized count to 0
         self.j = 0
+        self.prev_img_idx = None
 
     def binarize(self, attributions):
         # Normalize attributions
@@ -194,19 +195,19 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         # axs[i + 1].set_title("Value histogram ")
 
         # Loop over different threshold methods
-        methods = ["mean", "top 5%", "median", "fixed"]
+        methods = ["Mean", "Top 10%", "Median", "Fixed"]
         unique_values = len(binarized_attributions.flatten().unique())
         for i, method in enumerate(methods):
             # Set threshold
-            if method == "mean":
+            if method == "Mean":
                 iou_threshold = binarized_attributions.mean()
-            elif method == "top 5%":
+            elif method == "Top 10%":
                 iou_threshold = binarized_attributions.flatten().unique()[
                     -int(unique_values * 0.05)
                 ]
-            elif method == "median":
+            elif method == "Median":
                 iou_threshold = binarized_attributions.flatten().unique().median()
-            elif method == "fixed":
+            elif method == "Fixed":
                 iou_threshold = 0.5
             # Calculate IoU
             intersection_area = len(
@@ -261,7 +262,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             plt.savefig("./methods_comparions.png")
             self.visualize_flag = False
 
-    def update(self, attributions, bb_coordinates, image=None, pred=None):
+    def update(self, attributions, bb_coordinates, image=None, pred=None, img_idx=None):
         """
         Function to update the IoU score class with IoU score of new image.
         Takes:
@@ -288,8 +289,9 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         binarized_attributions = self.binarize(positive_attributions)
 
         # If first couple of images and visualize flag is true visualize different methods
-        if self.visualize_flag:
+        if self.visualize_flag and self.prev_img_idx != img_idx:
             self.visualize(binarized_attributions, bb_coordinates, image, pred)
+            self.prev_img_idx = img_idx
 
         # Calculate amount of pixels inside boundingbox and higher then threshold
         intersection_area = len(
