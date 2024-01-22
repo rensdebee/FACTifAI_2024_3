@@ -79,13 +79,14 @@ def get_random_optimization_targets(targets):
 
 
 class ParetoFrontModels:
-    def __init__(self, epg = True, iou = True, bin_width=0.005):
+    def __init__(self, epg=True, iou=True, adapt_iou=False, bin_width=0.005):
         super().__init__()
         self.bin_width = bin_width
         self.pareto_checkpoints = []
         self.pareto_costs = []
         self.epg = epg
         self.iou = iou
+        self.adapt_iou = adapt_iou
 
     def update(self, model, metric_dict, epoch, sll=None):
         metric_vals = copy.deepcopy(metric_dict)
@@ -99,18 +100,18 @@ class ParetoFrontModels:
             metric_vals.update({"model": state_dict, "epochs": epoch + 1})
         self.pareto_checkpoints.append(metric_vals)
 
-        # Which metrics to evaluate in making a pareto front        
+        # Which metrics to evaluate in making a pareto front
         if self.epg and self.iou:
             self.pareto_costs.append(
                 [metric_vals["F-Score"], metric_vals["BB-Loc"], metric_vals["BB-IoU"]]
             )
         elif self.epg:
-            self.pareto_costs.append(
-                [metric_vals["F-Score"], metric_vals["BB-Loc"]]
-            )
+            self.pareto_costs.append([metric_vals["F-Score"], metric_vals["BB-Loc"]])
         elif self.iou:
+            self.pareto_costs.append([metric_vals["F-Score"], metric_vals["BB-IoU"]])
+        elif self.adapt_iou:
             self.pareto_costs.append(
-                [metric_vals["F-Score"], metric_vals["BB-IoU"]]
+                [metric_vals["F-Score"], metric_vals["BB-IoU-Adapt"]]
             )
 
         efficient_indices = self.is_pareto_efficient(
@@ -124,13 +125,15 @@ class ParetoFrontModels:
         print(f"Current Pareto Front Size: {len(self.pareto_checkpoints)}")
         pareto_str = ""
         for idx, cost in enumerate(self.pareto_costs):
-            # Which evaluated metrics for the pareto front to print        
+            # Which evaluated metrics for the pareto front to print
             if self.epg and self.iou:
                 pareto_str += f"(F1:{cost[0]:.4f}, EPG:{cost[1]:.4f}, IOU:{cost[2]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
             elif self.epg:
                 pareto_str += f"(F1:{cost[0]:.4f}, EPG:{cost[1]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
             elif self.iou:
                 pareto_str += f"(F1:{cost[0]:.4f}, IOU:{cost[1]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
+            elif self.adapt_iou:
+                pareto_str += f"(F1:{cost[0]:.4f}, ADAPTIOU:{cost[1]:.4f}, MOD{self.pareto_checkpoints[idx]['epochs']})"
         print(f"Pareto Costs: {pareto_str}")
 
     def get_pareto_front(self):
@@ -139,7 +142,7 @@ class ParetoFrontModels:
     def save_pareto_front(self, save_path, npz=False):
         augmented_path = os.path.join(save_path, "pareto_front")
         os.makedirs(augmented_path, exist_ok=True)
-        for idx in range(len(self.pareto_checkpoints)):
+        for idx, _ in enumerate(self.pareto_checkpoints):
             f_score = self.pareto_checkpoints[idx]["F-Score"]
             bb_score = self.pareto_checkpoints[idx]["BB-Loc"]
             iou_score = self.pareto_checkpoints[idx]["BB-IoU"]
@@ -154,7 +157,9 @@ class ParetoFrontModels:
             elif self.epg:
                 method = "EPG"
             elif self.iou:
-                method = "IOU" 
+                method = "IOU"
+            elif self.adapt_iou:
+                method = "ADAPT_IOU"
 
             torch.save(
                 self.pareto_checkpoints[idx],
@@ -167,7 +172,13 @@ class ParetoFrontModels:
                 # Save as npz
                 npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
                 npz_path = os.path.join(save_path, npz_name)
-                np.savez(npz_path, f_score=f_score, bb_score=bb_score, iou_score=iou_score, sll=sll)
+                np.savez(
+                    npz_path,
+                    f_score=f_score,
+                    bb_score=bb_score,
+                    iou_score=iou_score,
+                    sll=sll,
+                )
 
     def is_pareto_efficient(self, costs, return_mask=True):
         """
@@ -184,11 +195,10 @@ class ParetoFrontModels:
         n_points = costs.shape[0]
 
         # Next index in the is_efficient array to search for
-        next_point_index = 0 
+        next_point_index = 0
 
         # Loop through all the points
         while next_point_index < len(costs):
-
             # Get the nondominated point mask of the next point
             nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
 

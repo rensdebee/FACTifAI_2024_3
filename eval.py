@@ -70,6 +70,7 @@ def eval_model(
     seg_metric = metrics.SegmentEnergyMultiple()
     frac_metric = metrics.SegmentFractionMultiple()
     iou_metric = metrics.BoundingBoxIoUMultiple(vis_flag=vis_flag)
+    adapative_iou_metric = metrics.BoundingBoxIoUAdapative()
 
     # Initialize total loss
     total_loss = 0
@@ -131,6 +132,7 @@ def eval_model(
                     # Update Bounding Box Energy metric and IoU metric
                     bb_metric.update(attributions, bb_list)
                     iou_metric.update(attributions, bb_list, image, pred, img_idx)
+                    adapative_iou_metric.update(attributions, bb_list)
 
                     # Update segmentation metrics if mode is segmentation
                     if mode == "segment":
@@ -160,9 +162,11 @@ def eval_model(
         iou_metric_vals = (
             iou_metric.fractions if return_per_class else iou_metric.compute()
         )
+        adapative_iou_metric_vals = adapative_iou_metric.compute()
 
         metric_vals["BB-Loc"] = bb_metric_vals
         metric_vals["BB-IoU"] = iou_metric_vals
+        metric_vals["BB-IoU-Adapt"] = adapative_iou_metric_vals
 
         # If mode is segmentation, compute BB-Loc-segment and BB-Loc-Fraction metrics
         if mode == "segment":
@@ -191,6 +195,7 @@ def eval_model(
         if attributor:
             writer.add_scalar("bbloc", metric_vals["BB-Loc"], epoch)
             writer.add_scalar("bbiou", metric_vals["BB-IoU"], epoch)
+            writer.add_scalar("bbiouadapt", metric_vals["BB-IoU-Adapt"], epoch)
     return (metric_vals, labels) if return_per_class else metric_vals
 
 

@@ -203,7 +203,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
                 iou_threshold = binarized_attributions.mean()
             elif method == "Top 10%":
                 iou_threshold = binarized_attributions.flatten().unique()[
-                    -int(unique_values * 0.05)
+                    -int(unique_values * 0.1)
                 ]
             elif method == "Median":
                 iou_threshold = binarized_attributions.flatten().unique().median()
@@ -259,7 +259,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             # Save figure
             self.fig.tight_layout()
             self.fig.suptitle("Comparision of threshold method for IoU score:")
-            plt.savefig("./methods_comparions.png")
+            plt.savefig("./images/methods_comparions.png")
             self.visualize_flag = False
 
     def update(self, attributions, bb_coordinates, image=None, pred=None, img_idx=None):
@@ -316,7 +316,83 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         else:
             iou = intersection_area / union_area
             self.defined_idxs.append(len(self.fractions))
-            # print("iou", iou)
+            self.fractions.append(torch.tensor(iou))
+
+
+class BoundingBoxIoUAdapative(EnergyPointingGameBase):
+    def __init__(
+        self,
+        include_undefined=True,
+        min_box_size=None,
+        max_box_size=None,
+    ):
+        super().__init__(include_undefined=include_undefined)
+        self.min_box_size = min_box_size
+        self.max_box_size = max_box_size
+
+    def binarize(self, attributions):
+        # Normalize attributions
+        attr_max = attributions.max()
+        attr_min = attributions.min()
+        if attr_max == 0:
+            return attributions
+        if torch.abs(attr_max - attr_min) < 1e-7:
+            return attributions / attr_max
+        return (attributions - attr_min) / (attr_max - attr_min)
+
+    def update(self, attributions, bb_coordinates):
+        """
+        Function to update the IoU score class with IoU score of new image.
+        Takes:
+        attributions: attribution map of image
+        bb_coordinates: bounding box coordinates list
+        image: Original image for visualizing.
+        """
+        # Set all negative attributions to 0
+        positive_attributions = attributions.clamp(min=0)
+        # Get the boundingbox mask
+        bb_mask = torch.zeros_like(positive_attributions, dtype=torch.long)
+        for coords in bb_coordinates:
+            xmin, ymin, xmax, ymax = coords
+            bb_mask[ymin:ymax, xmin:xmax] = 1
+        # Count the amount of pixels inside the boundingbox
+        bb_size = len(torch.where(bb_mask == 1)[0])
+
+        if self.min_box_size is not None and bb_size < self.min_box_size:
+            return
+        if self.max_box_size is not None and bb_size >= self.max_box_size:
+            return
+
+        # Normalize the positive attributions
+        binarized_attributions = self.binarize(positive_attributions)
+
+        unique_values = len(binarized_attributions.flatten().unique())
+
+        iou_threshold = binarized_attributions.flatten().unique()[
+            -int(unique_values * 0.1)
+        ]
+
+        # Calculate amount of pixels inside boundingbox and higher then threshold
+        intersection_area = len(
+            torch.where((binarized_attributions > iou_threshold) & (bb_mask == 1))[0]
+        )
+
+        # Calculate number of pixels higher then threshold plus inside boundingbox
+        union_area = (
+            len(torch.where(binarized_attributions > iou_threshold)[0])
+            + len(torch.where(bb_mask == 1)[0])
+            - intersection_area
+        )
+        assert intersection_area >= 0
+        assert union_area >= 0
+
+        # Calculate and store IoU score
+        if union_area == 0:
+            iou = 0.0
+            self.fractions.append(torch.tensor(iou))
+        else:
+            iou = intersection_area / union_area
+            self.defined_idxs.append(len(self.fractions))
             self.fractions.append(torch.tensor(iou))
 
 

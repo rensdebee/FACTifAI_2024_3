@@ -21,6 +21,7 @@ import fixup_resnet
 from eval import eval_model
 import re
 
+
 def main(args):
     root_dir = "./FT/VOC2007"
 
@@ -29,16 +30,23 @@ def main(args):
 
         for layer in os.listdir(base_path):
             # #TODO WEG
-            # if layer == "fin":
-            #     continue
+            if layer == "fin":
+                continue
             layer_path = os.path.join(base_path, layer)
             # print(layer_path)
-            
+
             for loss in os.listdir(layer_path):
                 loss_path = os.path.join(layer_path, loss)
 
-                pareto_front_tracker_EPG = utils.ParetoFrontModels(epg=True, iou=False)
-                pareto_front_tracker_IOU = utils.ParetoFrontModels(epg=False, iou=True)
+                pareto_front_tracker_EPG = utils.ParetoFrontModels(
+                    epg=True, iou=False, adapt_iou=False
+                )
+                pareto_front_tracker_IOU = utils.ParetoFrontModels(
+                    epg=False, iou=True, adapt_iou=False
+                )
+                pareto_front_tracker_ADAPTIOU = utils.ParetoFrontModels(
+                    epg=False, iou=False, adapt_iou=True
+                )
 
                 output_dir = ""
 
@@ -49,21 +57,20 @@ def main(args):
 
                 # Loop over directories of fine tuned models for different lambda's
                 for model_dir in os.listdir(loss_path):
-                    #TODO WEG
+                    # TODO WEG
                     # if test_counter == 1:
                     #     break
 
                     model_path = os.path.join(loss_path, model_dir)
-                    print('----------')
+                    print("----------")
                     print(model_dir)
-                    print('----------')
-
+                    print("----------")
 
                     # #TODO WEG
                     # test_counter += 1
 
                     # Extract the used localization loss
-                    pattern = re.compile(r'sll([\d.]+)')
+                    pattern = re.compile(r"sll([\d.]+)")
                     # Search for the pattern in the path name
                     match = pattern.search(model_dir)
                     if match:
@@ -80,9 +87,16 @@ def main(args):
                         for pareto_ch in os.listdir(pareto_path):
                             full_path = os.path.join(pareto_path, pareto_ch)
                             print(full_path)
-                            
-                            model_backbone, localization_loss_fn, layer, attribution_method = utils.get_model_specs(full_path)
-                            output_dir = os.path.join(model_backbone, layer, localization_loss_fn)
+
+                            (
+                                model_backbone,
+                                localization_loss_fn,
+                                layer,
+                                attribution_method,
+                            ) = utils.get_model_specs(full_path)
+                            output_dir = os.path.join(
+                                model_backbone, layer, localization_loss_fn
+                            )
                             print(output_dir)
 
                             utils.set_seed(args.seed)
@@ -99,28 +113,53 @@ def main(args):
                             if is_bcos:
                                 model = hubconf.resnet50(pretrained=True)
                                 model[0].fc = bcos.modules.bcosconv2d.BcosConv2d(
-                                    in_channels=model[0].fc.in_channels, out_channels=num_classes
+                                    in_channels=model[0].fc.in_channels,
+                                    out_channels=num_classes,
                                 )
-                                layer_dict = {"Input": None, "Mid1": 3, "Mid2": 4, "Mid3": 5, "Final": 6}
+                                layer_dict = {
+                                    "Input": None,
+                                    "Mid1": 3,
+                                    "Mid2": 4,
+                                    "Mid3": 5,
+                                    "Final": 6,
+                                }
                             elif is_xdnn:
                                 model = fixup_resnet.xfixup_resnet50()
                                 imagenet_checkpoint = torch.load(
-                                    os.path.join("weights/xdnn/xfixup_resnet50_model_best.pth.tar")
+                                    os.path.join(
+                                        "weights/xdnn/xfixup_resnet50_model_best.pth.tar"
+                                    )
                                 )
-                                imagenet_state_dict = utils.remove_module(imagenet_checkpoint["state_dict"])
+                                imagenet_state_dict = utils.remove_module(
+                                    imagenet_checkpoint["state_dict"]
+                                )
                                 model.load_state_dict(imagenet_state_dict)
                                 model.fc = torch.nn.Linear(
-                                    in_features=model.fc.in_features, out_features=num_classes
+                                    in_features=model.fc.in_features,
+                                    out_features=num_classes,
                                 )
-                                layer_dict = {"Input": None, "Mid1": 3, "Mid2": 4, "Mid3": 5, "Final": 6}
+                                layer_dict = {
+                                    "Input": None,
+                                    "Mid1": 3,
+                                    "Mid2": 4,
+                                    "Mid3": 5,
+                                    "Final": 6,
+                                }
                             elif is_vanilla:
                                 model = torchvision.models.resnet50(
                                     weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V1
                                 )
                                 model.fc = torch.nn.Linear(
-                                    in_features=model.fc.in_features, out_features=num_classes
+                                    in_features=model.fc.in_features,
+                                    out_features=num_classes,
                                 )
-                                layer_dict = {"Input": None, "Mid1": 4, "Mid2": 5, "Mid3": 6, "Final": 7}
+                                layer_dict = {
+                                    "Input": None,
+                                    "Mid1": 4,
+                                    "Mid2": 5,
+                                    "Mid3": 6,
+                                    "Final": 7,
+                                }
                             else:
                                 raise NotImplementedError
 
@@ -137,11 +176,14 @@ def main(args):
                                 transformer = bcos.data.transforms.AddInverse(dim=0)
                             else:
                                 transformer = torchvision.transforms.Normalize(
-                                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                                    mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225],
                                 )
 
                             # Load dataset base on --split argument
-                            root = os.path.join(args.data_path, args.dataset, "processed")
+                            root = os.path.join(
+                                args.data_path, args.dataset, "processed"
+                            )
 
                             if args.split == "train":
                                 train_data = datasets.VOCDetectParsed(
@@ -183,7 +225,9 @@ def main(args):
                                 )
                                 num_batches = len(test_data) / args.eval_batch_size
                             else:
-                                raise Exception("Data split not valid choose from ['train', 'val', 'test']")
+                                raise Exception(
+                                    "Data split not valid choose from ['train', 'val', 'test']"
+                                )
 
                             # Get loss function to calculate loss of split
                             loss_fn = torch.nn.BCEWithLogitsLoss()
@@ -199,8 +243,8 @@ def main(args):
                                 eval_attributor = attribution_methods.get_attributor(
                                     model,
                                     attribution_method,
-                                    False, #loss_loc.only_positive,
-                                    False, #loss_loc.binarize,
+                                    False,  # loss_loc.only_positive,
+                                    False,  # loss_loc.binarize,
                                     interpolate,
                                     (224, 224),
                                     batch_mode=False,
@@ -216,14 +260,22 @@ def main(args):
                                 num_batches,
                                 num_classes,
                                 loss_fn,
-                                None, #writer,
+                                None,  # writer,
                                 1,
                                 mode="bbs",
                                 vis_flag=False,
                             )
-                            
-                            pareto_front_tracker_EPG.update(model, metric_vals, num_model, sll)
-                            pareto_front_tracker_IOU.update(model, metric_vals, num_model, sll)
+
+                            pareto_front_tracker_EPG.update(
+                                model, metric_vals, num_model, sll
+                            )
+                            pareto_front_tracker_IOU.update(
+                                model, metric_vals, num_model, sll
+                            )
+
+                            pareto_front_tracker_ADAPTIOU.update(
+                                model, metric_vals, num_model, sll
+                            )
                             num_model += 1
 
                 save_path = os.path.join(args.save_path, args.dataset, output_dir)
@@ -231,6 +283,8 @@ def main(args):
 
                 pareto_front_tracker_EPG.save_pareto_front(save_path, npz=True)
                 pareto_front_tracker_IOU.save_pareto_front(save_path, npz=True)
+                pareto_front_tracker_ADAPTIOU.save_pareto_front(save_path, npz=True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -238,10 +292,10 @@ if __name__ == "__main__":
         "--data_path", type=str, default="datasets/", help="Path to datasets."
     )
     parser.add_argument(
-        "--log_path", type=str, default=None, help="Path to save TensorBoard logs."
-    )
-    parser.add_argument(
-        "--save_path", type=str, default="p_curves/", help="Path to save the pareto front at."
+        "--save_path",
+        type=str,
+        default="p_curves/",
+        help="Path to save the pareto front at.",
     )
     parser.add_argument(
         "--dataset",
