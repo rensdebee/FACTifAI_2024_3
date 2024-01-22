@@ -390,8 +390,18 @@ def main(args: argparse.Namespace):
         eval_attributor = None
 
     # If pareto is True, create Pareto front tracker
+    # With the corresponding metric (F1 vs args.pareto_metric) to base the front on
     if args.pareto:
-        pareto_front_tracker = utils.ParetoFrontModels()
+        if args.pareto_metric == "EPG_IOU":
+            epg = True
+            iou = True
+        elif args.pareto_metric == "EPG":
+            epg = True
+            iou = False
+        elif args.pareto_metric == "IOU":
+            epg = False
+            iou = True
+        pareto_front_tracker = utils.ParetoFrontModels(epg=epg, iou=iou)
 
     # Train model for total_epochs epochs
     for e in tqdm(range(args.total_epochs)):
@@ -688,6 +698,13 @@ if __name__ == "__main__":
         type=float,
         default=0,
         help="Fraction of dilation to use for bounding boxes when training.",
+    )
+    parser.add_argument(
+        "--pareto_metric",
+        type=str,
+        default="EPG_IOU",
+        choices=["EPG_IOU", "EPG", "IOU"],
+        help="Select the metric to create a pareto front with -> F1 vs choice.",
     )
     args = parser.parse_args()
     main(args)
