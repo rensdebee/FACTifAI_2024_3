@@ -387,9 +387,9 @@ def evaluation_function(model_path: str,
 
             if attribution_method:
                 epoch = model_path.split("_")[-1].split(".")[0]
-                npz_name = f"{dataset}_{split}_{model_backbone}_{attribution_method}_Baseline.npz"
+                npz_name = f"{dataset}_{split}_{model_backbone}_{attribution_method}_{layer}_Baseline.npz"
             else:
-                npz_name = f"{dataset}_{split}_{model_backbone}_Baseline.npz"
+                npz_name = f"{dataset}_{split}_{model_backbone}_{layer}_Baseline.npz"
 
         else:
             if attribution_method:
