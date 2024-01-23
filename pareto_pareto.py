@@ -29,9 +29,9 @@ def main(args):
         base_path = os.path.join(root_dir, base)
 
         for layer in os.listdir(base_path):
-            # # #TODO WEG
-            # if layer == "fin":
-            #     continue
+            # #TODO WEG
+            if layer == "fin" or layer == "in":
+                continue
             layer_path = os.path.join(base_path, layer)
             # print(layer_path)
 
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_path",
         type=str,
-        default="p_curves/",
+        default="r_curves/",
         help="Path to save the pareto front at.",
     )
     parser.add_argument(

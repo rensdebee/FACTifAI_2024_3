@@ -43,7 +43,7 @@ def preprocess_waterbirds(args):
 
     num = sum(split_mask) + 1
     save_data = torch.zeros((num,) + (3, 224, 224))
-    save_labels = torch.zeros((num, 1))
+    save_labels = torch.zeros((num, 2))
     save_bbs = [[] for _ in range(num)]
 
     total = 0
@@ -59,7 +59,7 @@ def preprocess_waterbirds(args):
         img = transform(img)
         save_data[total] = img
 
-        save_labels[total][0] = int(row["y"])
+        save_labels[total][int(row["y"])] = 1.0
 
         if row["img_id"] not in bbox_df["img_id"].values:
             print(f"Warning: img_id {row['img_id']} not found in bbox_df")
