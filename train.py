@@ -162,7 +162,7 @@ def main(args: argparse.Namespace):
     utils.set_seed(args.seed)
 
     # Get number of classes
-    num_classes_dict = {"VOC2007": 20, "COCO2014": 80, "WATERBIRDS": 1}
+    num_classes_dict = {"VOC2007": 20, "COCO2014": 80, "WATERBIRDS": 2}
     num_classes = num_classes_dict[args.dataset]
 
     # Get model
@@ -207,12 +207,10 @@ def main(args: argparse.Namespace):
 
     # Get layer index
     layer_idx = layer_dict[args.layer]
-
     # Load model checkpoint if provided
     if args.model_path is not None:
         checkpoint = torch.load(args.model_path)
         model.load_state_dict(checkpoint["model"])
-
     # Move model to GPU and set to training mode
     model = model.cuda()
     model.train()
@@ -357,8 +355,10 @@ def main(args: argparse.Namespace):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
     # Define metric trackers
-    f1_tracker = utils.BestMetricTracker("F-Score")
-
+    if args.dataset == "WATERBIRDS":
+        f1_tracker = utils.BestMetricTracker("F-Score")
+    else:
+        f1_tracker = utils.BestMetricTracker("Accuracy")
     # Define model activator and attributor
     model_activator = model_activators.ResNetModelActivator(
         model=model, layer=layer_idx, is_bcos=is_bcos
@@ -425,6 +425,7 @@ def main(args: argparse.Namespace):
             localization_loss = 0
             optimizer.zero_grad()
 
+            # os.system(f"nvidia-smi")
             # Compute logits and features
             train_X.requires_grad = True
             train_X = train_X.cuda()

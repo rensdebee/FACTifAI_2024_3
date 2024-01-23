@@ -41,9 +41,17 @@ def preprocess_waterbirds(args):
     split_dict = {"train": 0, "val": 1, "test": 2, "worst": 2}
     split_mask = metadata_df["split"] == split_dict[args.split]
 
-    num = sum(split_mask) + 1
+    total = 0
+    for _, row in metadata_df[split_mask].iterrows():
+        if int(row["place"]) != int(row["y"]) and args.split == "val":
+            continue
+        if (int(row["place"]) != 0 or int(row["y"]) != 1) and args.split == "worst":
+            continue
+        total += 1
+
+    num = total
     save_data = torch.zeros((num,) + (3, 224, 224))
-    save_labels = torch.zeros((num, 1))
+    save_labels = torch.zeros((num, 2))
     save_bbs = [[] for _ in range(num)]
 
     total = 0
@@ -52,14 +60,13 @@ def preprocess_waterbirds(args):
             continue
         if (int(row["place"]) != 0 or int(row["y"]) != 1) and args.split == "worst":
             continue
-        total += 1
         img_path = os.path.join(waterbirds_dataset_root, row["img_filename"])
         img = Image.open(img_path).convert("RGB")
         original_size = img.size
         img = transform(img)
         save_data[total] = img
 
-        save_labels[total][0] = int(row["y"])
+        save_labels[total][int(row["y"])] = 1.0
 
         if row["img_id"] not in bbox_df["img_id"].values:
             print(f"Warning: img_id {row['img_id']} not found in bbox_df")
@@ -80,7 +87,7 @@ def preprocess_waterbirds(args):
         w = bbox_scaled[2]
         h = bbox_scaled[3]
         save_bbs[total].append([int(row["y"]), x, y, x + w, y + h])
-
+        total += 1
         # visualize the image with bounding box
         # import matplotlib.pyplot as plt
         # import matplotlib.patches as patches
