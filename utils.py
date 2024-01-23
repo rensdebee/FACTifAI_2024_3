@@ -172,7 +172,10 @@ class ParetoFrontModels:
             )
             if npz:
                 # Save as npz
-                npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{adapt_iou_score:.4f}_{epoch}"
+                if self.adapt_iou:
+                    npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{adapt_iou_score:.4f}_{epoch}"
+                else:
+                    npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
                 npz_path = os.path.join(save_path, npz_name)
                 np.savez(
                     npz_path,

@@ -23,6 +23,7 @@ import re
 
 
 def main(args):
+    bin_width = 0.005
     root_dir = "./FT/VOC2007"
 
     for base in os.listdir(root_dir):
@@ -39,13 +40,13 @@ def main(args):
                 loss_path = os.path.join(layer_path, loss)
 
                 pareto_front_tracker_EPG = utils.ParetoFrontModels(
-                    epg=True, iou=False, adapt_iou=False
+                    epg=True, iou=False, adapt_iou=False, bin_width=bin_width
                 )
                 pareto_front_tracker_IOU = utils.ParetoFrontModels(
-                    epg=False, iou=True, adapt_iou=False
+                    epg=False, iou=True, adapt_iou=False, bin_width=bin_width
                 )
                 pareto_front_tracker_ADAPTIOU = utils.ParetoFrontModels(
-                    epg=False, iou=False, adapt_iou=True
+                    epg=False, iou=False, adapt_iou=True, bin_width=bin_width
                 )
 
                 output_dir = ""
