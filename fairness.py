@@ -19,14 +19,30 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 class Class_Fairness:
+    """  Class for evaluating fairness of the model on different classes
+    args:
+        model_pathBase (str): File path for the base model.
+        model_pathFN50 (str): File path for the FN50 model.
+        model_pathFNbest (str): File path for the best FN model.
+        dataset (str): Name of the dataset.
+        metric (str): Evaluation metric to be used.
+        split (str): Dataset split for evaluation ("seg_test" for seg metrics).
+        
+    returns:
+        None
+        (writes to an csv)
+
+    """
     def __init__(self, model_pathBase, 
                  model_pathFN50,
                  model_pathFNbest, dataset, metric, split) -> None:
         
+        # make sure correct arguments are given
         mode = 'segment' if split == "seg_test" else "bbs"
         if mode == "segment" and metric in ["BB-Loc-segment", "BB-Loc-Fraction"]:
             raise TypeError('Can not do segmentaion for non segmented dataset')
         
+        # evaluate the three models
         bl_metrics, labels = evaluation_function(model_pathBase,
                                          fix_layer="Final",
                                          pareto=False,
@@ -69,29 +85,30 @@ class Class_Fairness:
                                          vis_iou_thr_methods=False,
                                          return_per_class=True)
         
+        # compute means per class
         bl_means = self.compute_metric(bl_metrics[metric], labels)
         ft50_means = self.compute_metric(ft50_metrics[metric], labels)
         ftbest_means = self.compute_metric(ftbest_metrics[metric], labels)
         
-        percentage50_diff = [round((ft - bl) / bl, 4) for bl, ft in zip(bl_means, ft50_means)]
-        percentagebest_diff = [round((ft - bl) / bl, 4) for bl, ft in zip(bl_means, ftbest_means)]
+        # compute the difference between baseline and FT models
+        percentage50_diff = [round((ft - bl) / bl * 100, 1) for bl, ft in zip(bl_means, ft50_means)]
+        percentagebest_diff = [round((ft - bl) / bl * 100, 1) for bl, ft in zip(bl_means, ftbest_means)]
         
         class_names = [get_class_name(i) for i in range(20)]
         
-        bl_means= [round(value, 4) for value in bl_means]
-        ft50_means = [round(value, 4) for value in ft50_means]
-        ftbest_means = [round(value, 4) for value in ftbest_means]
+        bl_means= [round(value * 100, 1) for value in bl_means]
+        ft50_means = [round(value * 100, 1) for value in ft50_means]
+        ftbest_means = [round(value * 100, 1) for value in ftbest_means]
         
+        # get the number of samples per class
         label_counts = defaultdict(int)
-
         for label in labels:
             label_counts[label.item()] += 1
             
         sample_count = list(label_counts.values())
-        print(sample_count)
         
         # Zip the data together
-        data = zip(class_names, sample_count, bl_means, ft50_means, ftbest_means,  percentage50_diff, percentagebest_diff)
+        data = zip(class_names, sample_count, bl_means, ft50_means, percentage50_diff, ftbest_means, percentagebest_diff)
 
         # Save to CSV file
         csv_file_path = f'{dataset}_{metric}_{split}.csv'
@@ -99,7 +116,7 @@ class Class_Fairness:
             writer = csv.writer(file)
             
             # Write header
-            writer.writerow(['class-name', 'num-samples', 'bl-means', 'ft50-means', 'ftbest-means', 'percentage50_diff', 'percentagebest_diff'])
+            writer.writerow(['class-name', 'num-samples', 'bl-means', 'ft50-means', 'percentage50_diff', 'ftbest-means', 'percentagebest_diff'])
             
             # Write data
             for row in data:
@@ -112,7 +129,7 @@ class Class_Fairness:
 
         Args:
             data (list): List of metric values corresponding to each data point.
-            labels (list): List of class labels corresponding to each data point.
+            labels (list): List of tensors class labels corresponding to each data point.
 
         Returns:
             list: Mean score per class.
@@ -120,9 +137,7 @@ class Class_Fairness:
         metric_score = [[] for _ in range(20)]
 
         # Group metric values by class
-        _ = [metric_score[label].append(data[i]) for i, label in enumerate(labels)]
-
-        # Compute the mean score for each class
+        _ = [metric_score[label.item()].append(data[i]) for i, label in enumerate(labels)]
         mean_scores = [statistics.fmean(sublist) for sublist in metric_score]
 
         return mean_scores
@@ -193,5 +208,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
     
-    # python fairness.py --model_pathBase ./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.001_sll1.0_layerInput/model_checkpoint_f1_best.pt --model_pathFN50 ./FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerFinal/model_checkpoint_f1_best.pt  --model_pathFNbest ./FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerFinal/model_checkpoint_f1_best.pt --dataset VOC2007
-    
+# python fairness.py --model_pathBase ./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt  --model_pathFN50 ./FT/VOC2007/bcos/in/eng/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/model_checkpoint_final_50.pt  --model_pathFNbest ./FT/VOC2007/bcos/in/eng/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/model_checkpoint_f1_best.pt  --dataset VOC2007 --split test    
