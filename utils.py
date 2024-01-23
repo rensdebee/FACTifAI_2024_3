@@ -74,7 +74,9 @@ class BestMetricTracker:
 
 
 def get_random_optimization_targets(targets):
-    probabilities = targets / targets.sum(dim=1, keepdim=True).detach()
+    summed = targets.sum(dim=1, keepdim=True).detach()
+    probabilities = targets / summed
+    probabilities = torch.nan_to_num(probabilities, nan=1)
     return probabilities.multinomial(num_samples=1).squeeze(1)
 
 

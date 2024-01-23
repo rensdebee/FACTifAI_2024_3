@@ -93,8 +93,6 @@ def eval_model(
         test_X.requires_grad = True
         test_X = test_X.cuda()
         test_y = test_y.cuda()
-        if len(test_y.shape) == 1:
-            test_y = test_y.unsqueeze(dim=1)
         logits, features = model(test_X)
 
         # Calculate loss

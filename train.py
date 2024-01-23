@@ -432,8 +432,6 @@ def main(args: argparse.Namespace):
 
             # Compute attributions and update localization loss
             logits, features = model_activator(train_X)
-            if args.dataset == "WATERBIRDS":
-                train_y = train_y.unsqueeze(dim=1)
             loss = loss_fn(logits, train_y)
             batch_loss += loss
             total_class_loss += loss.detach()
@@ -442,7 +440,6 @@ def main(args: argparse.Namespace):
             if args.optimize_explanations:
                 # Get ground truth classes
                 gt_classes = utils.get_random_optimization_targets(train_y)
-
                 # Compute attributions given the ground truth classes, logits, and features
                 attributions = attributor(features, logits, classes=gt_classes).squeeze(
                     1

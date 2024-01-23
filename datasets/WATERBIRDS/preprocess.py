@@ -40,9 +40,12 @@ def preprocess_waterbirds(args):
 
     split_dict = {"train": 0, "val": 1, "test": 2, "worst": 2}
     split_mask = metadata_df["split"] == split_dict[args.split]
-    images = []
-    labels = []
-    bboxes = []
+
+    num = sum(split_mask) + 1
+    save_data = torch.zeros((num,) + (3, 224, 224))
+    save_labels = torch.zeros((num, 1))
+    save_bbs = [[] for _ in range(num)]
+
     total = 0
     for _, row in tqdm(metadata_df[split_mask].iterrows(), total=sum(split_mask)):
         if int(row["place"]) != int(row["y"]) and args.split == "val":
@@ -54,9 +57,9 @@ def preprocess_waterbirds(args):
         img = Image.open(img_path).convert("RGB")
         original_size = img.size
         img = transform(img)
-        images.append(img)
+        save_data[total] = img
 
-        labels.append(row["y"])
+        save_labels[total][0] = int(row["y"])
 
         if row["img_id"] not in bbox_df["img_id"].values:
             print(f"Warning: img_id {row['img_id']} not found in bbox_df")
@@ -64,18 +67,40 @@ def preprocess_waterbirds(args):
 
         bbox_row = bbox_df[bbox_df["img_id"] == row["img_id"]].iloc[0]
 
-        bbox = [bbox_row["x"], bbox_row["y"], bbox_row["width"], bbox_row["height"]]
+        bbox = [
+            bbox_row["x"],
+            bbox_row["y"],
+            bbox_row["width"],
+            bbox_row["height"],
+        ]
         bbox_scaled = scale_bbox(bbox, original_size)
-        bboxes.append(bbox_scaled)
 
-        # # visualize the image with bounding box
+        x = bbox_scaled[0]
+        y = bbox_scaled[1]
+        w = bbox_scaled[2]
+        h = bbox_scaled[3]
+        save_bbs[total].append([int(row["y"]), x, y, x + w, y + h])
+
+        # visualize the image with bounding box
         # import matplotlib.pyplot as plt
         # import matplotlib.patches as patches
+
         # fig, ax = plt.subplots(1)
         # ax.imshow(img.permute(1, 2, 0))
-        # rect = patches.Rectangle((bbox_scaled[0], bbox_scaled[1]), bbox_scaled[2], bbox_scaled[3], linewidth=1, edgecolor='r', facecolor='none')
-        # ax.add_patch(rect)
-        # plt.show()
+        # xmin, ymin, xmax, ymax = save_bbs[total][0][1:]
+        # ax.add_patch(
+        #     patches.Rectangle(
+        #         (xmin, ymin),
+        #         xmax - xmin,
+        #         ymax - ymin,
+        #         fc="none",
+        #         ec="royalblue",
+        #         lw=2,
+        #     )
+        # )
+        # Drawing_colored_circle = plt.Circle((bbox_scaled[0], bbox_scaled[1]), 5)
+        # ax.add_artist(Drawing_colored_circle)
+        # plt.savefig(f"./test{total}")
 
         # # Updated code to ensure the figure is displayed in the popup before it closes after 2 seconds
         # import matplotlib.pyplot as plt
@@ -90,11 +115,8 @@ def preprocess_waterbirds(args):
         # plt.pause(2)  # Show it for 2 seconds
         # plt.close()  # Close the figure
     print(f"Total num of images in set: {total}")
-    images = torch.stack(images)
-    labels = torch.tensor(labels, dtype=torch.float32)
-    bboxes = torch.tensor(bboxes, dtype=torch.float32)
 
-    dataset = {"data": images, "labels": labels, "bbs": bboxes, "mask": None}
+    dataset = {"data": save_data, "labels": save_labels, "bbs": save_bbs, "mask": None}
 
     save_path = os.path.join(args.save_path, args.split + ".pt")
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
