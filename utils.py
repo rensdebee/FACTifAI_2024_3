@@ -76,7 +76,6 @@ class BestMetricTracker:
 def get_random_optimization_targets(targets):
     summed = targets.sum(dim=1, keepdim=True).detach()
     probabilities = targets / summed
-    probabilities = torch.nan_to_num(probabilities, nan=1)
     return probabilities.multinomial(num_samples=1).squeeze(1)
 
 
@@ -148,6 +147,7 @@ class ParetoFrontModels:
             f_score = self.pareto_checkpoints[idx]["F-Score"]
             bb_score = self.pareto_checkpoints[idx]["BB-Loc"]
             iou_score = self.pareto_checkpoints[idx]["BB-IoU"]
+            adapt_iou_score = self.pareto_checkpoints[idx]["BB-IoU-Adapt"]
             epoch = self.pareto_checkpoints[idx]["epochs"]
             if self.sll is not None:
                 sll = self.pareto_checkpoints[idx]["sll"]
@@ -161,7 +161,7 @@ class ParetoFrontModels:
             elif self.iou:
                 method = "IOU"
             elif self.adapt_iou:
-                method = "ADAPT_IOU"
+                method = "ADAPT"
 
             torch.save(
                 self.pareto_checkpoints[idx],
@@ -172,13 +172,17 @@ class ParetoFrontModels:
             )
             if npz:
                 # Save as npz
-                npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
+                if self.adapt_iou:
+                    npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{adapt_iou_score:.4f}_{epoch}"
+                else:
+                    npz_name = f"{method}_SLL{sll}_F{f_score:.4f}_EPG{bb_score:.4f}_IOU{iou_score:.4f}_{epoch}"
                 npz_path = os.path.join(save_path, npz_name)
                 np.savez(
                     npz_path,
                     f_score=f_score,
                     bb_score=bb_score,
                     iou_score=iou_score,
+                    adapt_iou_score=adapt_iou_score,
                     sll=sll,
                 )
 
