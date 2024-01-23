@@ -392,16 +392,24 @@ def main(args: argparse.Namespace):
     # If pareto is True, create Pareto front tracker
     # With the corresponding metric (F1 vs args.pareto_metric) to base the front on
     if args.pareto:
-        if args.pareto_metric == "EPG_IOU":
-            epg = True
-            iou = True
-        elif args.pareto_metric == "EPG":
-            epg = True
-            iou = False
-        elif args.pareto_metric == "IOU":
-            epg = False
-            iou = True
-        pareto_front_tracker = utils.ParetoFrontModels(epg=epg, iou=iou)
+        # Create a pareto front based on both IOU and EPG seperately VS F1
+        if args.pareto_metric == "seperate":
+            pareto_front_tracker_EPG = utils.ParetoFrontModels(epg=True, iou=False)
+            pareto_front_tracker_IOU = utils.ParetoFrontModels(epg=False, iou=True)
+        else:
+            # Pareto front of IOU and EPG as one combined vs F1
+            if args.pareto_metric == "EPG_IOU":
+                epg = True
+                iou = True
+            # Pareto front created with just EPG vs F1
+            elif args.pareto_metric == "EPG":
+                epg = True
+                iou = False
+            # Pareto front created with just IOU vs F1
+            elif args.pareto_metric == "IOU":
+                epg = False
+                iou = True
+            pareto_front_tracker = utils.ParetoFrontModels(epg=epg, iou=iou)
 
     # Train model for total_epochs epochs
     for e in tqdm(range(args.total_epochs)):
@@ -496,7 +504,11 @@ def main(args: argparse.Namespace):
 
             # If pareto is True, update Pareto front tracker
             if args.pareto:
-                pareto_front_tracker.update(model, metric_vals, e)
+                if args.pareto_metric == "seperate":
+                    pareto_front_tracker_EPG.update(model, metric_vals, e)
+                    pareto_front_tracker_IOU.update(model, metric_vals, e)
+                else:
+                    pareto_front_tracker.update(model, metric_vals, e)
 
             # Get best F-Score
             best_fscore, _, _, _ = f1_tracker.get_best()
@@ -521,7 +533,11 @@ def main(args: argparse.Namespace):
 
                 # If pareto is True, save Pareto front
                 if args.pareto:
-                    pareto_front_tracker.save_pareto_front(save_path)
+                    if args.pareto_metric == "seperate":
+                        pareto_front_tracker_EPG.save_pareto_front(save_path)
+                        pareto_front_tracker_IOU.save_pareto_front(save_path)
+                    else:
+                        pareto_front_tracker.save_pareto_front(save_path)
                 return
 
             # Update metric values
@@ -529,7 +545,11 @@ def main(args: argparse.Namespace):
 
     # If pareto is True, save Pareto front
     if args.pareto:
-        pareto_front_tracker.save_pareto_front(save_path)
+        if args.pareto_metric == "seperate":
+            pareto_front_tracker_EPG.save_pareto_front(save_path)
+            pareto_front_tracker_IOU.save_pareto_front(save_path)
+        else:
+            pareto_front_tracker.save_pareto_front(save_path)
 
     # Calculate final metrics
     final_metric_vals = metric_vals
@@ -703,8 +723,8 @@ if __name__ == "__main__":
         "--pareto_metric",
         type=str,
         default="EPG_IOU",
-        choices=["EPG_IOU", "EPG", "IOU"],
-        help="Select the metric to create a pareto front with -> F1 vs choice.",
+        choices=["EPG_IOU", "EPG", "IOU", "seperate"],
+        help="Select the metric to create a pareto front with -> F1 vs choice. EPG_IOU evaluates both metrics as one, while [seperate] evaluates both metrics seperate.",
     )
     args = parser.parse_args()
     main(args)

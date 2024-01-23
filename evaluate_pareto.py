@@ -71,7 +71,26 @@ model_path = "./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet5
 
 evaluation_function(
     model_path=model_path,
-    fix_layer=None,
+    fix_layer="Input",
+    pareto=False,
+    eval_batch_size=4,
+    data_path="datasets/",
+    dataset="VOC2007",
+    split="test",
+    annotated_fraction=1,
+    mode="bbs",
+    npz=True,
+    vis_iou_thr_methods=False,
+    baseline=True,
+    save_npz_path="./p_curves/VOC2007/bcos/Baseline",
+)
+
+# baseline BCOS
+model_path = "./BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt"
+
+evaluation_function(
+    model_path=model_path,
+    fix_layer="Final",
     pareto=False,
     eval_batch_size=4,
     data_path="datasets/",
@@ -90,7 +109,26 @@ model_path = "./BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resn
 
 evaluation_function(
     model_path=model_path,
-    fix_layer=None,
+    fix_layer="Input",
+    pareto=False,
+    eval_batch_size=4,
+    data_path="datasets/",
+    dataset="VOC2007",
+    split="test",
+    annotated_fraction=1,
+    mode="bbs",
+    npz=True,
+    vis_iou_thr_methods=False,
+    baseline=True,
+    save_npz_path="./p_curves/VOC2007/vanilla/Baseline"
+)
+
+# baseline Vanilla
+model_path = "./BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt"
+
+evaluation_function(
+    model_path=model_path,
+    fix_layer="Final",
     pareto=False,
     eval_batch_size=4,
     data_path="datasets/",
