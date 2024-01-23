@@ -149,7 +149,7 @@ def eval_model(
                             bb_coordinates=bb_list,
                         )
 
-                        labels.append(pred)
+                    labels.append(pred)
 
     # finalize metric calculations
     metric_vals = f1_metric.compute()
