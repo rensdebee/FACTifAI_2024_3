@@ -94,7 +94,7 @@ class Class_Fairness:
         data = zip(class_names, sample_count, bl_means, ft50_means, ftbest_means,  percentage50_diff, percentagebest_diff)
 
         # Save to CSV file
-        csv_file_path = 'output.csv'  # Change to your desired file path
+        csv_file_path = f'{dataset}_{metric}_{split}.csv'
         with open(csv_file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
             
