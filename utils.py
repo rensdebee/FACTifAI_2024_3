@@ -477,3 +477,12 @@ def get_color_map():
         "blue": [[0.0, 0.0, 1.0], [0.3, 0.15, 0.15], [1.0, 0.0, 0.0]],
     }
     return mcolors.LinearSegmentedColormap("DarkRed", cdict)
+
+
+def get_waterbird_name(class_num):
+    class_name = "Waterbird" if class_num == 1 else "Landbird"
+    return class_name
+
+
+def switch_best_to_last(path_name, epochs=350):
+    return f"final_{epochs}".join(path_name.rsplit("f1_best", 1))
