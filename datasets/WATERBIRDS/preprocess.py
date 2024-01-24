@@ -38,7 +38,7 @@ def preprocess_waterbirds(args):
         names=["img_id", "x", "y", "width", "height"],
     )
 
-    split_dict = {"train": 0, "val": 1, "test": 2, "worst": 2}
+    split_dict = {"train": 0, "val": 1, "test": 2, "worst": 2, "real_worst": 2}
     split_mask = metadata_df["split"] == split_dict[args.split]
 
     total = 0
@@ -46,6 +46,8 @@ def preprocess_waterbirds(args):
         if int(row["place"]) != int(row["y"]) and args.split == "val":
             continue
         if (int(row["place"]) != 0 or int(row["y"]) != 1) and args.split == "worst":
+            continue
+        if (int(row["place"]) != 1 or int(row["y"]) != 0) and args.split == "real_worst":
             continue
         total += 1
 
@@ -59,6 +61,8 @@ def preprocess_waterbirds(args):
         if int(row["place"]) != int(row["y"]) and args.split == "val":
             continue
         if (int(row["place"]) != 0 or int(row["y"]) != 1) and args.split == "worst":
+            continue
+        if (int(row["place"]) != 1 or int(row["y"]) != 0) and args.split == "real_worst":
             continue
         img_path = os.path.join(waterbirds_dataset_root, row["img_filename"])
         img = Image.open(img_path).convert("RGB")
@@ -159,7 +163,7 @@ if __name__ == "__main__":
         help="Root directory of Waterbirds-100 dataset",
     )
     parser.add_argument(
-        "--split", type=str, choices=["train", "val", "test", "worst"], required=True
+        "--split", type=str, choices=["train", "val", "test", "worst", "real_worst"], required=True
     )
     parser.add_argument("--save_path", type=str, default="processed/")
     args = parser.parse_args()

@@ -382,7 +382,7 @@ def get_model(
     Load model, attributor and transform from model specs
     """
     # Get number of classes
-    num_classes_dict = {"VOC2007": 20, "COCO2014": 80}
+    num_classes_dict = {"VOC2007": 20, "COCO2014": 80, "WATERBIRDS": 2}
     num_classes = num_classes_dict[dataset]
 
     # Load correct model
