@@ -480,9 +480,15 @@ def get_color_map():
 
 
 def get_waterbird_name(class_num):
+    """
+    Function to translate class number into label for waterbirds
+    """
     class_name = "Waterbird" if class_num == 1 else "Landbird"
     return class_name
 
 
 def switch_best_to_last(path_name, epochs=350):
+    """
+    Function to switch model path from best epoch to last epoch save
+    """
     return f"final_{epochs}".join(path_name.rsplit("f1_best", 1))
