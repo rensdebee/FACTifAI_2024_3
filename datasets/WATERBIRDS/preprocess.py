@@ -53,7 +53,7 @@ def preprocess_waterbirds(args):
     save_data = torch.zeros((num,) + (3, 224, 224))
     save_labels = torch.zeros((num, 2))
     save_bbs = [[] for _ in range(num)]
-
+    print(save_labels.shape)
     total = 0
     for _, row in tqdm(metadata_df[split_mask].iterrows(), total=sum(split_mask)):
         if int(row["place"]) != int(row["y"]) and args.split == "val":
