@@ -357,9 +357,9 @@ def main(args: argparse.Namespace):
 
     # Define metric trackers
     if args.dataset == "WATERBIRDS":
-        f1_tracker = utils.BestMetricTracker("F-Score")
-    else:
         f1_tracker = utils.BestMetricTracker("Accuracy")
+    else:
+        f1_tracker = utils.BestMetricTracker("F-Score")
     # Define model activator and attributor
     model_activator = model_activators.ResNetModelActivator(
         model=model, layer=layer_idx, is_bcos=is_bcos
