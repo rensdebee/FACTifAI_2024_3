@@ -13,7 +13,7 @@ class VOCDetectParsed(torch.utils.data.Dataset):
         image_set,
         transform=None,
         annotated_fraction=1.0,
-        bbs_transform=False,
+        bbs_transform=None,
         plot=False,
     ):
         super().__init__()
