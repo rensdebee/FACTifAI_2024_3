@@ -30,10 +30,18 @@ def main(args):
     for loss in os.listdir(root_dir):
         loss_path = os.path.join(root_dir, loss)
 
+        # TODO WEG
+        if loss != "eng":
+            continue
+
         for dilation in os.listdir(loss_path):
             dil_path = os.path.join(loss_path, dilation)
 
-            print("######### Evaulating front for dilation ##########")     
+            # TODO WEG
+            if dilation != "0.1":
+                continue
+
+            print("######### Evaulating front for dilation ##########")
             print(dilation)
             print("##################################################")
 
@@ -53,7 +61,6 @@ def main(args):
 
             # Loop over directories of fine tuned models for different lambda's of a specific dilation
             for model_dir in os.listdir(dil_path):
-
                 model_path = os.path.join(dil_path, model_dir)
                 print("----------")
                 print(model_dir)
@@ -78,7 +85,6 @@ def main(args):
 
                     # Loop over all pareto_ch as resulted from training and evaluated on the val set
                     for pareto_ch in os.listdir(pareto_path):
-
                         # TODO WEG
                         # # Check evaluation metric used for this pareto front checkpoint (epg or iou)
                         # method = pareto_ch.split("_")[3]
@@ -180,9 +186,7 @@ def main(args):
                             )
 
                         # Load dataset base on --split argument
-                        root = os.path.join(
-                            args.data_path, args.dataset, "processed"
-                        )
+                        root = os.path.join(args.data_path, args.dataset, "processed")
 
                         if args.split == "train":
                             train_data = datasets.VOCDetectParsed(
@@ -278,7 +282,9 @@ def main(args):
                         num_model += 1
 
                         # save all metrics of evaluated models on the test set as npz
-                        save_all_path = os.path.join(args.save_path, output_dir, "not_par")
+                        save_all_path = os.path.join(
+                            args.save_path, output_dir, "not_par"
+                        )
                         os.makedirs(save_all_path, exist_ok=True)
 
                         # Save as npz
@@ -286,14 +292,14 @@ def main(args):
                         npz_path = os.path.join(save_all_path, npz_name)
                         np.savez(
                             npz_path,
-                            f_score=metric_vals['F-Score'],
-                            bb_score=metric_vals['BB-Loc'],
-                            iou_score=metric_vals['BB-IoU'],
-                            adapt_iou_score=metric_vals['BB-IoU-Adapt'],
+                            f_score=metric_vals["F-Score"],
+                            bb_score=metric_vals["BB-Loc"],
+                            iou_score=metric_vals["BB-IoU"],
+                            adapt_iou_score=metric_vals["BB-IoU-Adapt"],
                             sll=sll,
                         )
 
-            # Create and save the pareto front of the resulting evaluated models         
+            # Create and save the pareto front of the resulting evaluated models
             save_path = os.path.join(args.save_path, output_dir, "yes_par")
             os.makedirs(save_path, exist_ok=True)
 
@@ -303,13 +309,14 @@ def main(args):
 
             # remove pareto front models from "not_par"
             yes_pareto_path = save_path
-            not_pareto_path = os.path.join(args.save_path, output_dir, "no_par")
+            not_pareto_path = os.path.join(args.save_path, output_dir, "not_par")
 
             for par_model in os.listdir(yes_pareto_path):
                 if par_model in os.listdir(not_pareto_path):
                     model_path = os.path.join(not_pareto_path, par_model)
                     print(model_path)
                     os.remove(model_path)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -319,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_path",
         type=str,
-        default="p_c_dil/",
+        default="TEST/p_c_dil/",
         help="Path to save the pareto front at.",
     )
     parser.add_argument(
