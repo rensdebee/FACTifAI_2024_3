@@ -343,16 +343,44 @@ def evaluation_function(
             collate_fn=datasets.SegmentDataset.collate_fn,
         )
         num_batches = len(data) / eval_batch_size
+        
+    elif split == "worst":
+        print(root)
+        data = datasets.VOCDetectParsed(
+            root=root, image_set="worst", transform=transformer
+        )
+        loader = torch.utils.data.DataLoader(
+            data,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=datasets.VOCDetectParsed.collate_fn,
+        )
+        num_batches = len(data) / eval_batch_size
+        
+    elif split == "real_worst":
+        print(root)
+        data = datasets.VOCDetectParsed(
+            root=root, image_set="real_worst", transform=transformer
+        )
+        loader = torch.utils.data.DataLoader(
+            data,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=datasets.VOCDetectParsed.collate_fn,
+        )
+        num_batches = len(data) / eval_batch_size
     else:
         raise NotImplementedError(
-            f'Data split not valid choose from ["train", "val", "test", "seg_test"] but received "{split}"'
+            f'Data split not valid choose from ["train", "val", "test", "seg_test", worst] but received "{split}"'
         )
 
     # Define Binary Cross Entropy loss function to be used for the split
     loss_fn = torch.nn.BCEWithLogitsLoss()
 
     # Get number of classes
-    num_classes_dict = {"VOC2007": 20, "COCO2014": 80}
+    num_classes_dict = {"VOC2007": 20, "COCO2014": 80, "WATERBIRDS": 2}
     num_classes = num_classes_dict[dataset]
 
     # Create TensorBoard writer
@@ -457,14 +485,14 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="VOC2007",
-        choices=["VOC2007", "COCO2014"],
+        choices=["VOC2007", "COCO2014", "WATERBIRDS"],
         help="Dataset to train on.",
     )
     parser.add_argument(
         "--split",
         type=str,
         default="test",
-        choices=["train", "val", "test", "seg_test"],
+        choices=["train", "val", "test", "seg_test", "worst", "real_worst"],
         help="Set to evaluate on",
     )
     parser.add_argument(

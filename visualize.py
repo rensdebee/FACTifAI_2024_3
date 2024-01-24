@@ -14,6 +14,7 @@ def visualize_fig9(
     data_path="datasets/",
     dataset="VOC2007",
     image_set="test",
+    last=False,
 ):
     num_images = 15
     # Get dataset path
@@ -110,9 +111,14 @@ def visualize_fig9(
             if not localization_loss_fn:
                 localization_loss_fn = "Energy"
 
-            # If fixed layers are given set layer
-            if fix_layer:
-                layer = fix_layer
+            if last:
+                # If fixed layers are given set layer
+                if fix_layer:
+                    layer = fix_layer
+                epochs = 50
+                if og_loss_fn is None:
+                    epochs = 300
+                path = utils.switch_best_to_last(path, epochs)
             # Get model, attributor, en transform based on specs
             model, attributor, transformer = utils.get_model(
                 model_backbone,
@@ -177,8 +183,9 @@ def visualize_fig9(
             ax.axes.get_xaxis().set_ticks([])
             ax.axes.get_yaxis().set_ticks([])
     # Save figure
+    last = "Last" if last else "Best"
     fig.tight_layout()
-    plt.savefig("Figure9.png")
+    plt.savefig(f"./images/Figure9_{last}.png")
 
 
 def visualize_fig2(
@@ -189,6 +196,7 @@ def visualize_fig2(
     data_path="datasets/",
     dataset="VOC2007",
     image_set="test",
+    last=False,
 ):
     """
     Function to recreate figure 2 of the paper
@@ -313,7 +321,11 @@ def visualize_fig2(
             row_idx = (i * len(models_modes)) + (j + 1)
             # Get model path
             path = models_paths[i][j]
-
+            if last:
+                epoch = 50
+                if model_mode == "Baseline":
+                    epoch = 300
+                path = utils.switch_best_to_last(path, epoch)
             # Get model spec from path
             (
                 model_backbone,
@@ -399,8 +411,391 @@ def visualize_fig2(
             ax.axes.get_yaxis().set_ticks([])
 
     # Save figure
+    last = "Last" if last else "Best"
     fig.tight_layout()
-    plt.savefig("Figure2.png")
+    plt.savefig(f"./images/Figure2_{last}.png")
+
+
+def visualize_fig13(base_model_pth, ft_energy_path, ft_l1_path, last=True):
+    # define constants
+    fix_layer = "Input"
+    data_path = "datasets/"
+    dataset = "WATERBIRDS"
+    image_set = "test"
+    models = [base_model_pth, ft_energy_path, ft_l1_path]
+    model_names = ["Baseline", "Energy", "L1"]
+    # Get dataset path
+    root = os.path.join(data_path, dataset, "processed")
+
+    if last:
+        for i, path in enumerate(models):
+            models[i] = utils.switch_best_to_last(path, 350)
+
+    num_images = 5
+
+    # Create figure
+    fig, axs = plt.subplots(
+        num_images,
+        4,
+        figsize=(num_images * 2.5, 20),
+    )
+
+    # Create custom color map
+    dark_red_cmap = utils.get_color_map()
+
+    # Load images
+    data = datasets.VOCDetectParsed(root=root, image_set=image_set)
+    loader = torch.utils.data.DataLoader(
+        data,
+        batch_size=num_images,
+        shuffle=True,
+        num_workers=0,
+        collate_fn=datasets.VOCDetectParsed.collate_fn,
+    )
+
+    # Init batch of correct image with correct shape but batch size 0
+    inputs, classes, bb_box_list = next(iter(loader))
+
+    # Loop over plots in upper row
+    for i, ax in enumerate(axs[:, 0]):
+        # Get image
+        image = inputs[i]
+        # Get all bboxes for this image
+        bbs = bb_box_list[i]
+
+        # Pick choosen
+        clas = torch.where(classes[i] == 1)[0]
+
+        # Get class name from class number
+        class_name = utils.get_waterbird_name(clas)
+
+        # Get bboxes from specific classes
+        class_bbs = utils.filter_bbs(bbs, clas)
+
+        # Show original image
+        ax.imshow(torch.movedim(image[:3, :, :], 0, -1))
+        ax.set_title(
+            class_name,
+            fontsize=20,
+            fontname="Times New Roman",
+        )
+
+        # Plot boundingboxes
+        for coords in class_bbs:
+            xmin, ymin, xmax, ymax = coords
+            ax.add_patch(
+                patches.Rectangle(
+                    (xmin, ymin),
+                    xmax - xmin,
+                    ymax - ymin,
+                    fc="none",
+                    ec="#00FFFF",
+                    lw=5,
+                )
+            )
+
+    # Loop over model names and modes
+    for i, model_path in enumerate(models, 1):
+        print(model_path)
+        # Get model spec from path
+        (
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+        ) = utils.get_model_specs(model_path)
+        # If no attribution method set default values
+        if not attribution_method:
+            if model_backbone == "bcos":
+                attribution_method = "BCos"
+            elif model_backbone == "vanilla":
+                attribution_method = "IxG"
+
+        # default localistion loss is energy
+        if not localization_loss_fn:
+            localization_loss_fn = "Energy"
+
+        # If fixed layers are given set layer
+        if fix_layer:
+            layer = fix_layer
+
+        # Get model, attributor, en transform based on specs
+        model, attributor, transformer = utils.get_model(
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+            dataset,
+            model_path,
+        )
+        model.eval()
+        # apply transform
+        transformer.dim = -3
+        X = transformer(inputs.clone())
+
+        # Get output from model
+        X.requires_grad = True
+        X = X.cuda()
+        logits, features = model(X)
+
+        # Get attributions per image
+        for img_idx, image in enumerate(X):
+            pred = torch.where(classes[img_idx] == 1)[0]
+            attributions = (
+                attributor(features, logits, pred, img_idx)
+                .detach()
+                .squeeze(0)
+                .squeeze(0)
+            )
+            positive_attributions = attributions.clamp(min=0).cpu()
+            bb = utils.filter_bbs(bb_box_list[img_idx], pred)
+
+            # Plot attribution map
+            axs[img_idx][i].imshow(positive_attributions, cmap=dark_red_cmap)
+            # Plot boundingbox
+            for coords in bb:
+                xmin, ymin, xmax, ymax = coords
+                axs[img_idx][i].add_patch(
+                    patches.Rectangle(
+                        (xmin, ymin),
+                        xmax - xmin,
+                        ymax - ymin,
+                        fc="none",
+                        ec="#4169E1",
+                        lw=5,
+                    )
+                )
+            # Set row title
+            axs[img_idx][i].set_title(
+                f"{model_names[i-1]}",
+                fontsize=20,
+                fontname="Times New Roman",
+            )
+            pred_clas = int(logits[img_idx].argmax().item())
+            confidence = logits[img_idx][pred_clas].sigmoid().item() * 100
+            pred_clas_name = utils.get_waterbird_name(pred_clas)
+            axs[img_idx][i].set_xlabel(
+                f"{pred_clas_name}\nConf.:{confidence:.0f}%",
+                fontsize=20,
+                fontname="Times New Roman",
+            )
+
+    # Remove plot ticks
+    for ax_ in axs:
+        for ax in ax_:
+            ax.axes.get_xaxis().set_ticks([])
+            ax.axes.get_yaxis().set_ticks([])
+
+    # Save figure
+    last = "Last" if last else "Best"
+    fig.tight_layout()
+    plt.savefig(f"./images/Figure13_{last}.png")
+
+
+def get_one_laytout(i):
+    j = str(i + 1)
+    i = str(i)
+    layout = [
+        ["A" + i, "B" + i, "C" + i, "A" + j, "B" + j, "C" + j],
+        ["D" + i, "E" + i, "F" + i, "D" + j, "E" + j, "F" + j],
+        ["G" + i, "H" + i, "F" + i, "G" + j, "H" + j, "F" + j],
+    ]
+
+    return layout
+
+
+def visualize_fig11(
+    base_path,
+    energy_paths,
+    L1_paths,
+    last=False,
+):
+    if last:
+        base_path = utils.switch_best_to_last(base_path, 300)
+
+        for i, path in enumerate(energy_paths):
+            energy_paths[i] = utils.switch_best_to_last(path, 50)
+
+        for i, path in enumerate(L1_paths):
+            L1_paths[i] = utils.switch_best_to_last(path, 50)
+
+    # define constants
+    num_images = 6
+    fix_layer = "Input"
+    data_path = "datasets/"
+    dataset = "VOC2007"
+    image_set = "test"
+    titles = ["50%", "0%", "Baseline"]
+    # Get dataset path
+    root = os.path.join(data_path, dataset, "processed")
+
+    assert num_images % 2 == 0
+    assert num_images >= 2
+    layout = []
+    for i in range(0, num_images, 2):
+        layout += get_one_laytout(i)
+
+    # Create custom color map
+    dark_red_cmap = utils.get_color_map()
+    fig, axd = plt.subplot_mosaic(layout, figsize=(15, num_images * 4))
+
+    # Load images
+    data = datasets.VOCDetectParsed(root=root, image_set=image_set)
+    loader = torch.utils.data.DataLoader(
+        data,
+        batch_size=num_images,
+        shuffle=True,
+        num_workers=0,
+        collate_fn=datasets.VOCDetectParsed.collate_fn,
+    )
+    # Init batch of correct image with correct shape but batch size 0
+    inputs, classes, bb_box_list = next(iter(loader))
+
+    chosen_classes = []
+
+    for i in range(num_images):
+        # Get image
+        image = inputs[i]
+        # Get all bboxes for this image
+        bbs = bb_box_list[i]
+        # Pick one random class from all classes in image
+        clas = np.random.choice(torch.where(classes[i] == 1)[0])
+        chosen_classes.append(clas)
+
+        # Get class name from class number
+        class_name = utils.get_class_name(clas)
+
+        # Get bboxes from specific classes
+        class_bbs = utils.filter_bbs(bbs, clas)
+        for j, letter in enumerate(["A", "B", "C"]):
+            i = str(i)
+            # Show original image
+            axd[letter + i].imshow(torch.movedim(image[:3, :, :], 0, -1))
+            axd[letter + i].axes.get_xaxis().set_ticks([])
+            axd[letter + i].axes.get_yaxis().set_ticks([])
+            axd[letter + i].set_title(
+                titles[j],
+                fontsize=20,
+                fontname="Times New Roman",
+            )
+            if letter == "A":
+                axd[letter + i].set_ylabel(
+                    class_name,
+                    fontsize=20,
+                    fontname="Times New Roman",
+                )
+            if letter != "C":
+                if letter == "A":
+                    en_class_bbs = utils.enlarge_bb(class_bbs, 0.5)
+                else:
+                    en_class_bbs = class_bbs
+                # Plot boundingboxes
+                for coords in en_class_bbs:
+                    xmin, ymin, xmax, ymax = coords
+                    axd[letter + i].add_patch(
+                        patches.Rectangle(
+                            (xmin, ymin),
+                            xmax - xmin,
+                            ymax - ymin,
+                            fc="none",
+                            ec="#00FFFF",
+                            lw=5,
+                        )
+                    )
+    # Loop over model names and modes
+    models = [base_path] + L1_paths + energy_paths
+
+    i_to_letter = ["F", "E", "D", "H", "G"]
+    for i, model_path in enumerate(models):
+        print(model_path)
+        # Get model spec from path
+        (
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+        ) = utils.get_model_specs(model_path)
+        # If no attribution method set default values
+        if not attribution_method:
+            if model_backbone == "bcos":
+                attribution_method = "BCos"
+            elif model_backbone == "vanilla":
+                attribution_method = "IxG"
+
+        # default localistion loss is energy
+        if not localization_loss_fn:
+            localization_loss_fn = "Energy"
+
+        # If fixed layers are given set layer
+        if fix_layer:
+            layer = fix_layer
+
+        # Get model, attributor, en transform based on specs
+        model, attributor, transformer = utils.get_model(
+            model_backbone,
+            localization_loss_fn,
+            layer,
+            attribution_method,
+            dataset,
+            model_path,
+        )
+        model.eval()
+        # apply transform
+        transformer.dim = -3
+        X = transformer(inputs.clone())
+
+        # Get output from model
+        X.requires_grad = True
+        X = X.cuda()
+        logits, features = model(X)
+
+        # Get attributions per image
+        for img_idx, image in enumerate(X):
+            pred = chosen_classes[img_idx]
+            attributions = (
+                attributor(features, logits, pred, img_idx)
+                .detach()
+                .squeeze(0)
+                .squeeze(0)
+            )
+            positive_attributions = attributions.clamp(min=0).cpu()
+            bb = utils.filter_bbs(bb_box_list[img_idx], pred)
+
+            img_idx = str(img_idx)
+            letter = i_to_letter[i]
+            # Plot attribution map
+            axd[letter + img_idx].imshow(positive_attributions, cmap=dark_red_cmap)
+            axd[letter + img_idx].axes.get_xaxis().set_ticks([])
+            axd[letter + img_idx].axes.get_yaxis().set_ticks([])
+            loss_fn = None
+            if letter == "D":
+                loss_fn = "L1"
+            if letter == "G":
+                loss_fn = "Energy"
+            if loss_fn:
+                axd[letter + img_idx].set_ylabel(
+                    loss_fn,
+                    fontsize=20,
+                    fontname="Times New Roman",
+                )
+            # Plot boundingbox
+            for coords in bb:
+                xmin, ymin, xmax, ymax = coords
+                axd[letter + img_idx].add_patch(
+                    patches.Rectangle(
+                        (xmin, ymin),
+                        xmax - xmin,
+                        ymax - ymin,
+                        fc="none",
+                        ec="#4169E1",
+                        lw=5,
+                    )
+                )
+
+    # Save figure
+    last = "Last" if last else "Best"
+    fig.tight_layout()
+    plt.savefig(f"./images/Figure11_{last}.png")
 
 
 if __name__ == "__main__":
@@ -422,12 +817,12 @@ if __name__ == "__main__":
         type=list,
         default=[
             [
-                "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_final_300.pt",
-                "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_final_50.pt",
+                "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+                "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
             ],
             [
-                "BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_final_300.pt",
-                "FT/VOC2007/vanilla_finetunedobjlocpareto_attrIxG_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal/model_checkpoint_final_50.pt",
+                "BASE/VOC2007/vanilla_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+                "FT/VOC2007/vanilla_finetunedobjlocpareto_attrIxG_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal/model_checkpoint_f1_best.pt",
             ],
         ],
         help="Model modes to plot.",
@@ -450,15 +845,42 @@ if __name__ == "__main__":
         choices=["train", "val", "test"],
         help="Dataset to train on.",
     )
+    parser.add_argument(
+        "--last",
+        action="store_true",
+        default=False,
+        help="Flag to indicate to show last model epoch instead of best",
+    )
     args = parser.parse_args()
     args = vars(args)
     visualize_fig2(**args)
-    visualize_fig9(
-        [
-            "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_final_300.pt",
-            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_final_50.pt",
-            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.01_layerInput/model_checkpoint_final_50.pt",
-            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerInput/model_checkpoint_final_50.pt",
-            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll5e-05_layerInput/model_checkpoint_final_50.pt",
-        ]
-    )
+    # visualize_fig9(
+    #     [
+    #         "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
+    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.01_layerInput/model_checkpoint_f1_best.pt",
+    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.001_sll0.001_layerInput/model_checkpoint_f1_best.pt",
+    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll5e-05_layerInput/model_checkpoint_f1_best.pt",
+    #     ],
+    #     last=False,
+    # )
+
+    # visualize_fig13(
+    #     "WBBASE\WATERBIRDS/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",
+    #     "WBFT\WATERBIRDS/bcos_finetunedobjlocpareto_limited_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0005_sll0.1_layerInputlimited0.01\model_checkpoint_f1_best.pt",
+    #     "WBFT\WATERBIRDS/bcos_finetunedobjlocpareto_limited_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0005_sll0.1_layerInputlimited0.01\model_checkpoint_f1_best.pt",
+    #     last=False,
+    # )
+
+    # visualize_fig11(
+    #     base_path="BASE\VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput\model_checkpoint_f1_best.pt",
+    #     energy_paths=[
+    #         "FT\DIL/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput\model_checkpoint_f1_best.pt",
+    #         "FT\DIL/bcos_FT_dilated_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput_dil0.5\model_checkpoint_f1_best.pt",
+    #     ],
+    #     L1_paths=[
+    #         "FT\DIL/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput\model_checkpoint_f1_best.pt",
+    #         "FT\DIL/bcos_FT_dilated_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput_dil0.5\model_checkpoint_f1_best.pt",
+    #     ],
+    #     last=False,
+    # )

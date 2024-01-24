@@ -275,10 +275,10 @@ def main(args: argparse.Namespace):
             mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
         )
 
+    transformer_bbs = None
     if args.dataset == "WATERBIRDS":
-        transformer = v2.Compose(
+        transformer_bbs = v2.Compose(
             [
-                transformer,
                 v2.RandomResizedCrop(size=(224, 224), antialias=True),
                 v2.RandomHorizontalFlip(p=0.5),
             ]
@@ -291,6 +291,7 @@ def main(args: argparse.Namespace):
         image_set="train",
         transform=transformer,
         annotated_fraction=args.annotated_fraction,
+        bbs_transform=transformer_bbs,
     )
     val_data = datasets.VOCDetectParsed(
         root=root, image_set="val", transform=transformer
@@ -356,9 +357,9 @@ def main(args: argparse.Namespace):
 
     # Define metric trackers
     if args.dataset == "WATERBIRDS":
-        f1_tracker = utils.BestMetricTracker("F-Score")
-    else:
         f1_tracker = utils.BestMetricTracker("Accuracy")
+    else:
+        f1_tracker = utils.BestMetricTracker("F-Score")
     # Define model activator and attributor
     model_activator = model_activators.ResNetModelActivator(
         model=model, layer=layer_idx, is_bcos=is_bcos

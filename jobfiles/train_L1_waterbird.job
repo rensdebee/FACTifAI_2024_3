@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu
+#SBATCH --gpus=1
+#SBATCH --job-name=L1_WB
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=18
+#SBATCH --time=6:00:00
+#SBATCH --output=./slurms/L1_bcos_waterbird_%A.out
+
+module purge
+module load 2022
+module load Anaconda3/2022.05
+source activate FACTifAI
+
+python train.py --annotated_fraction 0.01 --localization_loss_fn L1 --layer Input --localization_loss_lambda 0.05 --save_path ./WBFT3 --model_backbone bcos  --total_epochs 350 --learning_rate 1e-5 --log_path ./WBbl3 --train_batch_size 32 --dataset WATERBIRDS   --attribution_method BCos --optimize_explanations
+
