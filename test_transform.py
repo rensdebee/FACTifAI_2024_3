@@ -1,3 +1,15 @@
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
+
+test_transform.py
+"""
+
 import datasets
 from torchvision.transforms import v2
 import os
@@ -7,6 +19,7 @@ import matplotlib.patches as patches
 
 num_images = 10
 
+# Define the transformations to be applied to the images
 transformer = v2.Compose(
     [
         v2.RandomResizedCrop(size=(224, 224), antialias=True),
@@ -15,6 +28,8 @@ transformer = v2.Compose(
 )
 
 root = os.path.join("datasets/", "WATERBIRDS", "processed")
+
+# Create the training dataset
 train_data = datasets.VOCDetectParsed(
     root=root,
     image_set="train",
@@ -24,6 +39,7 @@ train_data = datasets.VOCDetectParsed(
     plot=True,
 )
 
+# Create the training loader
 train_loader = torch.utils.data.DataLoader(
     train_data,
     batch_size=num_images,
@@ -32,11 +48,14 @@ train_loader = torch.utils.data.DataLoader(
     collate_fn=datasets.VOCDetectParsed.collate_fn,
 )
 
+# Get a batch of images and their corresponding bounding boxes
 inputs, classes, bb_box_list, og_inputs, og_classes, og_bb_box_list = next(
     iter(train_loader)
 )
 
 fig, axs = plt.subplots(num_images, 2, figsize=(5, 4 * num_images))
+
+# Plot the images and their bounding boxes
 for i in range(num_images):
     image = inputs[i]
     bbs = bb_box_list[i]

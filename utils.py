@@ -1,3 +1,15 @@
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
+
+utils.py
+"""
+
 import torch
 import random
 import numpy as np
@@ -205,6 +217,7 @@ class ParetoFrontModels:
 
         # Loop through all the points
         while next_point_index < len(costs):
+            
             # Get the nondominated point mask of the next point
             nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
 
