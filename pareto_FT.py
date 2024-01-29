@@ -30,11 +30,7 @@ def main(args):
         base_path = os.path.join(root_dir, base)
 
         for layer in os.listdir(base_path):
-            # #TODO WEG
-            if layer == "fin" or layer == "in":
-                continue
             layer_path = os.path.join(base_path, layer)
-            # print(layer_path)
 
             for loss in os.listdir(layer_path):
                 loss_path = os.path.join(layer_path, loss)
@@ -50,25 +46,15 @@ def main(args):
                 )
 
                 output_dir = ""
-
                 num_model = 0
-
-                # #TODO WEG
-                # test_counter = 0
 
                 # Loop over directories of fine tuned models for different lambda's
                 for model_dir in os.listdir(loss_path):
-                    # TODO WEG
-                    # if test_counter == 1:
-                    #     break
 
                     model_path = os.path.join(loss_path, model_dir)
                     print("----------")
                     print(model_dir)
                     print("----------")
-
-                    # #TODO WEG
-                    # test_counter += 1
 
                     # Extract the used localization loss
                     pattern = re.compile(r"sll([\d.]+)")
