@@ -27,23 +27,11 @@ def main(args):
     bin_width = 0.002
     root_dir = args.pareto_path
 
-    print(root_dir)
-
     for loss in os.listdir(root_dir):
         loss_path = os.path.join(root_dir, loss)
-        #TODO WEG
-        print(loss)
-        if loss != "eng":
-            continue
 
         for eff_metric in os.listdir(loss_path):
             eff_path = os.path.join(loss_path, eff_metric)
-
-            print(eff_metric)
-            #TODO WEG
-            if eff_metric != "0":
-                print("jan")
-                continue
 
             print("######### Dilation/Annotation Frac ##########")
             print(eff_metric)
@@ -61,9 +49,6 @@ def main(args):
 
             output_dir = ""
             num_model = 0
-
-            print("bob")
-            print(os.listdir(eff_path))
 
             # Loop over directories of fine tuned models for different lambda's of a specific dilation
             for model_dir in os.listdir(eff_path):
