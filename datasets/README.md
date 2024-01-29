@@ -8,10 +8,9 @@ python preprocess.py --split val
 python preprocess.py --split test
 ```
 
-For COCO2014, the dataset needs to be first downloaded using [download.sh](COCO2014/download.sh).
+For Waterbirds-100%, the dataset needs to be first downloaded using the following [link](https://drive.google.com/file/d/1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k/view?usp=sharing).
+
 
 ### Acknowledgements
 
-The scripts provided here build upon scripts from [stevenstalder/NN-Explainer](https://github.com/stevenstalder/NN-Explainer).
-
-
+The scripts provided here build upon scripts from [stevenstalder/NN-Explainer](https://github.com/stevenstalder/NN-Explainer) and [spetryk/GALS](https://github.com/spetryk/GALS)
