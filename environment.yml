@@ -1,4 +1,4 @@
-name: model_guidance
+name: repro_model_guidance
 channels:
   - pytorch
   - nvidia
@@ -25,3 +25,6 @@ dependencies:
     - pycocotools
     - torchmetrics
     - pytorch-lightning
+    - pandas
+    - gdown
+    - typing

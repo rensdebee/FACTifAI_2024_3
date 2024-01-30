@@ -57,7 +57,10 @@ class Class_Fairness:
                                          vis_iou_thr_methods=False,
                                          return_per_class=True)
         
-        ft50_metrics, labels = evaluation_function(model_pathFN50,
+        stacked_labels = torch.tensor(labels)
+        unique, sample_count = torch.unique(stacked_labels, return_counts=True)
+        
+        ft50_metrics, _ = evaluation_function(model_pathFN50,
                                          fix_layer="Final",
                                          pareto=False,
                                          eval_batch_size=4,
@@ -71,7 +74,7 @@ class Class_Fairness:
                                          vis_iou_thr_methods=False,
                                          return_per_class=True)
         
-        ftbest_metrics, labels = evaluation_function(model_pathFNbest,
+        ftbest_metrics, _ = evaluation_function(model_pathFNbest,
                                          fix_layer="Final",
                                          pareto=False,
                                          eval_batch_size=4,
@@ -99,13 +102,6 @@ class Class_Fairness:
         bl_means= [round(value * 100, 1) for value in bl_means]
         ft50_means = [round(value * 100, 1) for value in ft50_means]
         ftbest_means = [round(value * 100, 1) for value in ftbest_means]
-        
-        # get the number of samples per class
-        label_counts = defaultdict(int)
-        for label in labels:
-            label_counts[label.item()] += 1
-            
-        sample_count = list(label_counts.values())
         
         # Zip the data together
         data = zip(class_names, sample_count, bl_means, ft50_means, percentage50_diff, ftbest_means, percentagebest_diff)
