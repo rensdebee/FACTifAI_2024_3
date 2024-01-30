@@ -65,11 +65,11 @@ def main(args):
     os.makedirs(args.save_path, exist_ok=True)
     torch.save(dataset, os.path.join(args.save_path, split + ".pt"))
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--data_root", type=str, default=".")
-parser.add_argument("--split", type=str,
-                    choices=["train", "val", "test", "trainval"], required=True)
-parser.add_argument("--save_path", type=str, default="processed/")
-args = parser.parse_args()
-main(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default=".")
+    parser.add_argument("--split", type=str,
+                        choices=["train", "val", "test", "trainval"], required=True)
+    parser.add_argument("--save_path", type=str, default="processed/")
+    args = parser.parse_args()
+    main(args)

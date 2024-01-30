@@ -212,8 +212,8 @@ def evaluation_function(
     vis_iou_thr_methods: bool = False,
     return_per_class: bool = False,
     baseline: bool = False,
-    save_npz_path: Optional[str] = None,
-) -> dict:
+    save_npz_path: Optional[str] = None
+    ) -> dict:
     """
     Evaluate a model's performance on a specific dataset split and return the metrics.
 
@@ -422,10 +422,12 @@ def evaluation_function(
 
         # If baseline is true, add baseline to the file name
         elif baseline and not pareto:
-            # in metrics rename F-Score to f_score, BB-Loc to bb_score, BB-IoU to iou_score
+
+            # In metrics rename F-Score to f_score, BB-Loc to bb_score, BB-IoU to iou_score, BB-IoU-Adapt to adapt_iou_score
             metric_vals["f_score"] = metric_vals.pop("F-Score")
             metric_vals["bb_score"] = metric_vals.pop("BB-Loc")
             metric_vals["iou_score"] = metric_vals.pop("BB-IoU")
+            metric_vals["adapt_iou_score"] = metric_vals.pop("BB-IoU-Adapt")
 
             if attribution_method:
                 epoch = model_path.split("_")[-1].split(".")[0]

@@ -147,23 +147,23 @@ def main(args):
         val = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
             year="2007",
-            download=True,
+            download=False,
             image_set="val",
             transform=transform,
         )
         test = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
             year="2007",
-            download=True,
+            download=False,
             image_set="test",
             transform=transform,
         )
         # retrieve segmentation image IDs
         image_files = []
-        with open("./VOCdevkit/VOC2007/ImageSets/Segmentation/val.txt", "r") as f:
+        with open(f"{args.data_root}/VOCdevkit/VOC2007/ImageSets/Segmentation/val.txt", "r") as f:
             for line in f:
                 image_files.append(line.strip() + ".xml")
-        with open("./VOCdevkit/VOC2007/ImageSets/Segmentation/test.txt", "r") as f:
+        with open(f"{args.data_root}/VOCdevkit/VOC2007/ImageSets/Segmentation/test.txt", "r") as f:
             for line in f:
                 image_files.append(line.strip() + ".xml")
 
@@ -178,7 +178,7 @@ def main(args):
         )
         # retrieve segmentation image IDs
         image_files = []
-        with open(f"./VOCdevkit/VOC2007/ImageSets/Segmentation/{split}.txt", "r") as f:
+        with open(f"{args.data_root}/VOCdevkit/VOC2007/ImageSets/Segmentation/{split}.txt", "r") as f:
             for line in f:
                 image_files.append(line.strip() + ".xml")
 
@@ -186,7 +186,7 @@ def main(args):
     label_masks = torch.zeros(len(data), 1, 224, 224)
     labels = torch.zeros((len(data), 20))
     bounding_boxes = [[] for _ in range(len(data))]
-    path_root = "./VOCdevkit/VOC2007/Annotations/"
+    path_root = f"{args.data_root}/VOCdevkit/VOC2007/Annotations/"
     
     # for every image data, filename; create the data object
     for i, (d, image_file) in enumerate(zip(tqdm(data), image_files)):
