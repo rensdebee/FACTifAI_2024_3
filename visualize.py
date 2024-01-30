@@ -1,3 +1,15 @@
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
+
+visualize.py
+"""
+
 import torch
 import argparse
 import datasets
@@ -609,7 +621,7 @@ def visualize_fig11(
     base_path,
     energy_paths,
     L1_paths,
-    last=False,
+    last=False
 ):
     if last:
         base_path = utils.switch_best_to_last(base_path, 300)
@@ -1301,16 +1313,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args = vars(args)
     visualize_fig2(**args)
-    # visualize_fig9(
-    #     [
-    #         "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
-    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
-    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.01_layerInput/model_checkpoint_f1_best.pt",
-    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.001_sll0.001_layerInput/model_checkpoint_f1_best.pt",
-    #         "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll5e-05_layerInput/model_checkpoint_f1_best.pt",
-    #     ],
-    #     last=False,
-    # )
+    visualize_fig9(
+        [
+            "BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.01_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossPPCE_origmodel_checkpoint_f1_best.pt_resnet50_lr0.001_sll0.001_layerInput/model_checkpoint_f1_best.pt",
+            "FT/VOC2007/bcos_finetunedobjlocpareto_attrBCos_loclossRRR_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll5e-05_layerInput/model_checkpoint_f1_best.pt",
+        ],
+        last=False,
+    )
 
     # visualize_fig13(
     #     "WBBASE\WATERBIRDS/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr1e-05_sll1.0_layerInput\model_checkpoint_f1_best.pt",

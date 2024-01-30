@@ -26,7 +26,7 @@ import attribution_methods
 import bcos.modules.bcosconv2d
 import bcos.data.transforms
 import matplotlib.colors as mcolors
-from typing import Tensor
+
 from typing import Dict, List, Tuple, Optional, Any
 
 
@@ -139,15 +139,15 @@ class BestMetricTracker:
         )
 
 
-def get_random_optimization_targets(targets: Tensor) -> Tensor:
+def get_random_optimization_targets(targets: torch.Tensor) ->  torch.Tensor:
     """
     Get random optimization targets based on the input probabilities.
 
     Args:
-    - targets (Tensor): A tensor of target probabilities for each class.
+    - targets (torch.Tensor): A tensor of target probabilities for each class.
 
     Returns:
-    - Tensor: A tensor containing indices of selected classes based on the input probabilities.
+    - torch.Tensor: A tensor containing indices of selected classes based on the input probabilities.
     """
     summed = targets.sum(dim=1, keepdim=True).detach()
     probabilities = targets / summed
