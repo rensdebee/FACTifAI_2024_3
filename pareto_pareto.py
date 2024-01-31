@@ -12,24 +12,22 @@ import bcos.data
 from eval import eval_model
 import re
 
-def main():
-    bin_width = 0.005
-    
-    # Specify layer
-    layer = "Final"
-    # Specify data split to evaluate on
-    data_split = "test"
-    # Specify attribution method - ["BCos", "GradCam", "IxG"]
-    attribution_method = "BCos"
-    
-    eval_batch_size = 4
+def main(bin_width=0.005,
+        layer="Final",
+        data_split="test",
+        attribution_method="BCos",
+        eval_batch_size=4,
+        model_dir="./FT/VOC2007/bcos/fin/l1/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal/pareto_front",
+        output_dir="./p_curves_demo/VOC2007/bcos/Final/L1"):
+    """
+    """
 
-    # Directory holding pareto front checkpoints
-    model_dir = ".\FT\VOC2007/bcos/fin\l1/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal\pareto_front"
     # Extract the used localization loss
     pattern = re.compile(r"sll([\d.]+)")
+
     # Search for the pattern in the path name
     match = pattern.search(model_dir)
+
     if match:
         # Retrieve the numerical value after "sll"
         sll = match.group(1)
@@ -39,7 +37,6 @@ def main():
                     epg=True, iou=False, adapt_iou=False, bin_width=bin_width
                 )
     
-    output_dir = "./TEST/results/"
     num_model = 0
     utils.set_seed(0)
 

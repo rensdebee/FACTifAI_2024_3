@@ -191,9 +191,9 @@ class ParetoFrontModels:
         self.sll = sll
 
         if sll is not None:
-            metric_vals.update({"model": state_dict, "epochs": epoch + 1, "sll": sll})
+            metric_vals.update({"model": state_dict, "epochs": epoch, "sll": sll})
         else:
-            metric_vals.update({"model": state_dict, "epochs": epoch + 1})
+            metric_vals.update({"model": state_dict, "epochs": epoch})
         self.pareto_checkpoints.append(metric_vals)
 
         # Which metrics to evaluate in making a pareto front

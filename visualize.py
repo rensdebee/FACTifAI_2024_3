@@ -828,7 +828,9 @@ def plot_pareto_curve(
     hide_y_ticks: bool = False,
     hide_x_ticks: bool = False,
     fontsize: int = 20,
-    attribution_method: str = "IxG"
+    attribution_method: str = "IxG",
+    plot_demo_data: bool = False,
+    demo_data: List[Tuple[float, float]] = [],
     ) -> None:
     """
     Plots a Pareto curve with given data points.
@@ -858,20 +860,45 @@ def plot_pareto_curve(
             ax.scatter(x, y, marker=marker, color=color, label=label, s=fontsize*10, edgecolors='black', zorder=3)
             ax.plot(x, y, color=color, linestyle='--')
 
-    # Plot each dataset
-    plot_data(energy_data, 'o', '#FF006F', 'Energy')
-    plot_data(l1_data, 'v', '#00E49F', 'L1')
-    plot_data(ppce_data, 'p', '#FFD562', 'PPCE')
-    plot_data(rrr_data, 'D', '#008AB3', 'RRR*')
+    if not plot_demo_data:
+        # Plot each dataset
+        plot_data(energy_data, 'o', '#FF006F', 'Energy')
+        plot_data(l1_data, 'v', '#00E49F', 'L1')
+        plot_data(ppce_data, 'p', '#FFD562', 'PPCE')
+        plot_data(rrr_data, 'D', '#008AB3', 'RRR*')
+    
+    else:
 
-    # Plot Baseline
-    ax.plot(baseline_data[0], baseline_data[1], marker='X', color='white', markersize=fontsize, markeredgewidth=2, markeredgecolor='black', label='Baseline', zorder=2)
+        # Remove points from l1_data from demo_data
+        demo_data = [point for point in demo_data if point not in l1_data]
 
-    # Find the best limits for the plot
-    x_values = [x for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data] + [baseline_data[0]]
-    y_values = [y for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data] + [baseline_data[1]]
-    x_min, x_max = min(x_values), max(x_values)
-    y_min, y_max = min(y_values), max(y_values)
+        x, y = zip(*demo_data)
+        ax.scatter(x, y, marker="v", color="#00E49F", label="L1 (All Checkpoints)", s=fontsize*10, edgecolors='black', zorder=2, alpha=0.5)
+
+        x, y = zip(*l1_data)
+        ax.scatter(x, y, marker="v", color="#00E49F", label="L1 (Pareto Front Highlighted)", s=fontsize*10, edgecolors='black', zorder=3)
+        ax.plot(x, y, color="#00E49F", linestyle='--', zorder=3)
+
+
+    # if baseline isn't empty, plot the baseline data
+    if baseline_data != []:
+
+        # Plot Baseline
+        ax.plot(baseline_data[0], baseline_data[1], marker='X', color='white', markersize=fontsize, markeredgewidth=2, markeredgecolor='black', label='Baseline', zorder=2)
+
+        # Find the best limits for the plot
+        x_values = [x for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data] + [baseline_data[0]]
+        y_values = [y for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data] + [baseline_data[1]]
+        x_min, x_max = min(x_values), max(x_values)
+        y_min, y_max = min(y_values), max(y_values)
+
+    else:
+        
+        # Find the best limits for the plot
+        x_values = [x for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data]
+        y_values = [y for data in [energy_data, l1_data, ppce_data, rrr_data] for x, y in data]
+        x_min, x_max = min(x_values), max(x_values)
+        y_min, y_max = min(y_values), max(y_values)
 
     # Set the limits with some padding
     x_pad = (x_max - x_min) * 0.15
@@ -889,20 +916,21 @@ def plot_pareto_curve(
     else:
         ax.set_ylim(y_min - y_pad, y_max + y_pad)
 
-    # Dominated region (gray)
-    ax.plot([0, baseline_data[0]], [baseline_data[1], baseline_data[1]], '--', color='gray', alpha=0.5, zorder=1)
-    ax.plot([baseline_data[0], baseline_data[0]], [-20, baseline_data[1]], '--', color='gray', alpha=0.5, zorder=1)
-    ax.fill_between([baseline_data[0], -20], [baseline_data[1], baseline_data[1]], [-20, -20], color='gray', alpha=0.1, zorder=1)
-    
-    # Dominating region (green)
-    ax.plot([baseline_data[0], 120], [baseline_data[1], baseline_data[1]], '--', color='green', alpha=0.5, zorder=1)
-    ax.plot([baseline_data[0], baseline_data[0]], [120, baseline_data[1]], '--', color='green', alpha=0.5, zorder=1)
-    ax.fill_between([120, baseline_data[0]], [baseline_data[1], baseline_data[1]], [120, 120], color='green', alpha=0.1, zorder=1)
+    if baseline_data != []:
+        # Dominated region (gray)
+        ax.plot([0, baseline_data[0]], [baseline_data[1], baseline_data[1]], '--', color='gray', alpha=0.5, zorder=1)
+        ax.plot([baseline_data[0], baseline_data[0]], [-20, baseline_data[1]], '--', color='gray', alpha=0.5, zorder=1)
+        ax.fill_between([baseline_data[0], -20], [baseline_data[1], baseline_data[1]], [-20, -20], color='gray', alpha=0.1, zorder=1)
+        
+        # Dominating region (green)
+        ax.plot([baseline_data[0], 120], [baseline_data[1], baseline_data[1]], '--', color='green', alpha=0.5, zorder=1)
+        ax.plot([baseline_data[0], baseline_data[0]], [120, baseline_data[1]], '--', color='green', alpha=0.5, zorder=1)
+        ax.fill_between([120, baseline_data[0]], [baseline_data[1], baseline_data[1]], [120, 120], color='green', alpha=0.1, zorder=1)
 
-    # Place text using axes fraction
-    ax.text(0.015, 0.05, 'Dominated', transform=ax.transAxes, fontsize=15, color='gray', alpha=1, fontstyle='italic')
-    ax.text(0.02, 0.77, attribution_method, transform=ax.transAxes, fontsize=fontsize + 6, color='darkblue', alpha=1)
-    ax.text(0.99, 0.56, 'Dominating', transform=ax.transAxes, fontsize=15, color='green', alpha=1, fontstyle='italic', rotation=90, ha='right')
+        # Place text using axes fraction
+        ax.text(0.015, 0.05, 'Dominated', transform=ax.transAxes, fontsize=15, color='gray', alpha=1, fontstyle='italic')
+        ax.text(0.02, 0.77, attribution_method, transform=ax.transAxes, fontsize=fontsize + 6, color='darkblue', alpha=1)
+        ax.text(0.99, 0.56, 'Dominating', transform=ax.transAxes, fontsize=15, color='green', alpha=1, fontstyle='italic', rotation=90, ha='right')
 
     # Legend, Axes, and Labels
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.12), ncol=5, fancybox=True, shadow=True, fontsize=fontsize, columnspacing=0, handletextpad=0.0)

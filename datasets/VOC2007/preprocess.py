@@ -20,7 +20,7 @@ def get_target_dictionary(include_background_class):
     return target_dict
 
 
-def main(args):
+def preprocess_voc2007(args):
     split = args.split
     transform = torchvision.transforms.Compose([torchvision.transforms.Resize(
         size=(224, 224)), torchvision.transforms.ToTensor()])
@@ -72,4 +72,4 @@ if __name__ == "__main__":
                         choices=["train", "val", "test", "trainval"], required=True)
     parser.add_argument("--save_path", type=str, default="processed/")
     args = parser.parse_args()
-    main(args)
+    preprocess_voc2007(args)

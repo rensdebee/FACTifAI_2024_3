@@ -21,10 +21,11 @@ import os
 from PIL import Image
 from tqdm import tqdm
 import argparse
+import subprocess
 
 
 def preprocess_waterbirds(args):
-    cub_dataset_root = args.cub_dataset_root
+
     waterbirds_dataset_root = args.waterbirds_dataset_root
     transform = transforms.Compose(
         [transforms.Resize((224, 224)), transforms.ToTensor()]
@@ -32,7 +33,7 @@ def preprocess_waterbirds(args):
 
     metadata_df = pd.read_csv(os.path.join(waterbirds_dataset_root, "metadata.csv"))
     bbox_df = pd.read_csv(
-        os.path.join(cub_dataset_root, "bounding_boxes.txt"),
+        os.path.join(args.bounding_boxes_path),
         sep=" ",
         header=None,
         names=["img_id", "x", "y", "width", "height"],
@@ -151,10 +152,10 @@ def scale_bbox(bbox, img_size):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--cub_dataset_root",
+        "--bounding_boxes_path",
         type=str,
-        default="./",
-        help="Root directory of CUB dataset",
+        default="./bounding_boxes.txt",
+        help="Path to bounding_boxes.txt file",
     )
     parser.add_argument(
         "--waterbirds_dataset_root",
@@ -167,5 +168,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("--save_path", type=str, default="processed/")
     args = parser.parse_args()
+
+    # check if the dataset is downloaded
+    if not os.path.exists(args.waterbirds_dataset_root):
+        
+        # Download the file using gdown
+        subprocess.run(["gdown", "1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k", "-O", "./"])
+
+        # Create the directory if it doesn't exist
+        os.makedirs("./waterbird_1.0_forest2water2", exist_ok=True)
+
+        # Extract the tar.gz file
+        subprocess.run(["tar", "-xzf", "./waterbird_1.0_forest2water2.tar.gz", "-C", "./waterbird_1.0_forest2water2"])
 
     preprocess_waterbirds(args)
