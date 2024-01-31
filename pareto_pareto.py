@@ -16,7 +16,7 @@ def main():
     bin_width = 0.005
     
     # Specify layer
-    layer = "Input"
+    layer = "Final"
     # Specify data split to evaluate on
     data_split = "test"
     # Specify attribution method - ["BCos", "GradCam", "IxG"]
@@ -25,7 +25,7 @@ def main():
     eval_batch_size = 4
 
     # Directory holding pareto front checkpoints
-    model_dir = "./FT\VOC2007/bcos/in/eng/bcos_finetunedobjlocpareto_attrBCos_loclossEnergy_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.001_layerinput/pareto_front"
+    model_dir = ".\FT\VOC2007/bcos/fin\l1/bcos_finetunedobjlocpareto_attrBCos_loclossL1_origmodel_checkpoint_f1_best.pt_resnet50_lr0.0001_sll0.005_layerFinal\pareto_front"
     # Extract the used localization loss
     pattern = re.compile(r"sll([\d.]+)")
     # Search for the pattern in the path name
@@ -39,18 +39,13 @@ def main():
                     epg=True, iou=False, adapt_iou=False, bin_width=bin_width
                 )
     
-    output_dir = "./TEST/"
+    output_dir = "./TEST/results/"
     num_model = 0
     utils.set_seed(0)
 
     # Loop over all pareto_chechpoints
     for pareto_ch in os.listdir(model_dir):
         full_path = os.path.join(model_dir, pareto_ch)
-
-        # Read out model configuration / use for save path
-        model_backbone, localization_loss_fn, _, _ = utils.get_model_specs(full_path)
-        output_dir = os.path.join(output_dir, model_backbone, layer, localization_loss_fn)
-
 
         # VOC num of classes
         num_classes = 20
