@@ -147,14 +147,14 @@ def main(args):
         val = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
             year="2007",
-            download=False,
+            download=True,
             image_set="val",
             transform=transform,
         )
         test = torchvision.datasets.VOCSegmentation(
             root=args.data_root,
             year="2007",
-            download=False,
+            download=True,
             image_set="test",
             transform=transform,
         )
@@ -210,7 +210,6 @@ def main(args):
             # Modify plot_img where segmentation != 0
             plot_img[mask] = (segmentation[mask] / 255) * 0.5 + plot_img[mask] * 0.5
             plt.imshow(plot_img)
-            # plt.imshow(masked_segmentation, alpha=0.6)
             
             for (class_idx, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
                 rect = patches.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
@@ -221,6 +220,84 @@ def main(args):
             if i <= args.img_amount: # increase to see more images
                 os.makedirs("temp_imgs", exist_ok=True)
                 plt.savefig(f"./temp_imgs/{image_file[:-4]}.png")
+            plt.clf()
+        
+        # Visualize the image "sheep" from appendix Visual EPG metrics comparison
+        # note that --img_amount should be said to at least 20.
+        if args.show_img and image_file == "000676.xml":
+            os.makedirs("temp_imgs", exist_ok=True)
+
+            blue = np.array([30, 170, 80]) /255
+            light_blue =  np.array([118,130,20]) / 255
+            red = np.array([255, 118, 95]) / 255
+            light_red =  np.array([225, 85, 65]) / 255
+            # show segmantation over original image
+            plot_img = image.permute(1,2,0).numpy()
+            og_img = plot_img.copy()
+                                    
+            mask = np.all(np.isclose(segmentation, np.array([224, 224, 192])), axis=-1)
+            
+            # Modify plot_img where segmentation != 0
+            og_img[mask] = blue
+            plt.imshow(og_img)
+
+            
+            for (class_idx, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
+                rect = patches.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
+                                        linewidth=5, 
+                                        edgecolor= blue, 
+                                        facecolor='none')
+                plt.gca().add_patch(rect)
+            
+            plt.axis("off")
+            plt.tight_layout()
+            plt.savefig(f"./temp_imgs/{image_file[:-4]}_original.png")
+            mask = ~np.all(segmentation == 0, axis=-1)
+            
+            # Bounding box
+            bbs_img = np.zeros_like(plot_img)
+            bbs_img[:, :] = red
+            for (class_idx, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
+                rect = patches.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
+                                        linewidth=5, 
+                                        edgecolor=light_blue , 
+                                        facecolor='none')
+                plt.gca().add_patch(rect)
+                bbs_img[min_y:max_y, min_x:max_x] = blue
+            
+            plt.axis("off")
+            plt.tight_layout()
+            plt.imshow(bbs_img)
+            plt.savefig(f"./temp_imgs/{image_file[:-4]}_bbs.png")
+            plt.clf()
+
+            segment_img = np.zeros_like(plot_img)
+            segment_img[:, :] = red
+            for (class_idx, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
+                segment_img[mask] = blue
+            plt.axis("off")
+            plt.tight_layout()
+            plt.imshow(segment_img)
+            plt.savefig(f"./temp_imgs/{image_file[:-4]}_segment.png")
+
+
+            # Fraction
+            for (class_idx, min_x, min_y, max_x, max_y) in bounding_boxes[i]:
+                plot_img[min_y:max_y, min_x:max_x] = red
+                plot_img[mask] = blue
+                rect = patches.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
+                                        linewidth=5, 
+                                        edgecolor=light_red , 
+                                        facecolor='none')
+                plt.gca().add_patch(rect)
+            plt.imshow(plot_img)
+
+            plt.axis("off")
+            plt.tight_layout()
+
+            if i <= args.img_amount: # increase to see more images
+                os.makedirs("temp_imgs", exist_ok=True)
+                plt.savefig(f"./temp_imgs/{image_file[:-4]}_fraction.png")
             plt.clf()
 
     dataset = {"data": images, "labels": labels, "mask": label_masks, "bbs": bounding_boxes}

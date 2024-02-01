@@ -25,7 +25,7 @@ def preprocess_voc2007(args):
     transform = torchvision.transforms.Compose([torchvision.transforms.Resize(
         size=(224, 224)), torchvision.transforms.ToTensor()])
     idata = torchvision.datasets.VOCDetection(
-            root=args.data_root, year="2007", download=False, image_set=split, transform=transform)
+            root=args.data_root, year="2007", download=True, image_set=split, transform=transform)
     
     save_data = torch.zeros((len(idata),)+idata[0][0].shape)
     save_labels = torch.zeros((len(idata), 20))
