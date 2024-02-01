@@ -5,10 +5,9 @@ Description: This file is part of a project aiming to reproduce the study titled
 Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
 proposed in the original study, and potentially extending or refining the study's findings.
 
-Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
 Based on the code of the paper "GALS: Guiding Visual Attention with Language Specification": https://github.com/spetryk/GALS/blob/main/datasets/waterbirds.py
 
-datasets/Waterbirds-100%/preprocess.py
+datasets/WATERBIRDS/preprocess.py
 """
 
 import torch
@@ -23,6 +22,21 @@ import subprocess
 
 
 def preprocess_waterbirds(args):
+
+    # check if the dataset is downloaded
+    if not os.path.exists(args.waterbirds_dataset_root):
+        
+        # Download the file using gdown
+        subprocess.run(["gdown", "1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k", "-O", "./waterbird_1.0_forest2water2.tar.gz"])
+
+        # Create the directory if it doesn't exist
+        os.makedirs("./datasets/WATERBIRDS/waterbird_1.0_forest2water2", exist_ok=True)
+
+        # Extract the tar.gz file
+        subprocess.run(["tar", "-xzf", "./waterbird_1.0_forest2water2.tar.gz", "-C", "./datasets/WATERBIRDS/waterbird_1.0_forest2water2"])
+
+        # Remove the tar.gz file
+        subprocess.run(["rm", "./waterbird_1.0_forest2water2.tar.gz"])
 
     waterbirds_dataset_root = args.waterbirds_dataset_root
     transform = transforms.Compose(
@@ -166,20 +180,3 @@ if __name__ == "__main__":
     )
     parser.add_argument("--save_path", type=str, default="processed/")
     args = parser.parse_args()
-
-    # check if the dataset is downloaded
-    if not os.path.exists(args.waterbirds_dataset_root):
-        
-        # Download the file using gdown
-        subprocess.run(["gdown", "1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k", "-O", "./"])
-
-        # Create the directory if it doesn't exist
-        os.makedirs("./waterbird_1.0_forest2water2", exist_ok=True)
-
-        # Extract the tar.gz file
-        subprocess.run(["tar", "-xzf", "./waterbird_1.0_forest2water2.tar.gz", "-C", "./waterbird_1.0_forest2water2"])
-
-        # Remove the tar.gz file
-        subprocess.run(["rm", "./waterbird_1.0_forest2water2.tar.gz"])
-
-    preprocess_waterbirds(args)

@@ -1,12 +1,22 @@
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of the paper "What You See is What You Classify: Black Box Attributions": https://github.com/stevenstalder/NN-Explainer
+
+datasets/VOC2007/preprocess.py
+"""
+
 import torch
 import torchvision
 import argparse
 import os
 from tqdm import tqdm
 
-"""
-Source: https://github.com/stevenstalder/NN-Explainer
-"""
+
 def get_target_dictionary(include_background_class):
     if include_background_class:
         target_dict = {'background': 0, 'aeroplane': 1, 'bicycle': 2, 'bird': 3, 'boat': 4, 'bottle': 5, 'bus': 6, 'car': 7,
