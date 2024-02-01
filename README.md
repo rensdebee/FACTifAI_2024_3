@@ -170,8 +170,64 @@ python eval.py --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_orig
 For example, to optimize B-cos attributions using the Energy loss at the Input layer, use:
 
 ```bash
-python pareto_FT.py --model_path "<path to your directory containing the models>" --log_path "<path to your directory where the logs should be saved>"  --dataset VOC2007 --split test --eval_batch_size 4 --seed 0
+python pareto_FT.py --data_path "datasets/" --save_path "p_curves/" --dataset "VOC2007" --split "test" --eval_batch_size 4 --seed 0
 ```
+
+## Results
+
+### Reproducibility study
+
+**Claim 1: Bounding Boxes are sufficient to guide models.**
+
+Although being relatively coarse, bounding box supervision can provide sufficient guidance to the models whilst being much cheaper to obtain than semantic segmentation masks. We replicate the results of the paper and show that bounding boxes are sufficient to guide models.
+
+<p align="center">
+<img src="./images/paper_fig1.png" width="100%" text-align="center"/>
+</p>
+
+<p align="center">
+<img src="./images/paper_fig2.png" width="100%" text-align="center"/>
+</p>
+
+**Claim 2: Energy loss constitutes a good loss function for model guidance.**
+
+The proposed EPG score constitutes a good loss function for model guidance, particularly when using bounding boxes. We replicate the results of the paper and show that the EPG score is a good loss function for model guidance.
+
+<p align="center">
+<img src="./images/paper_fig3.png" width="100%" text-align="center"/>
+</p>
+
+<p align="center">
+<img src="./images/paper_tab2.png" width="100%" text-align="center"/>
+</p>
+
+**Claim 3: Guiding the models can be done cost-effectively with sparse and noisy bounding boxes.**
+
+Model guidance can be accomplished cost-effectively by using annotation masks that are noisy or are available for only a small fraction of the training data. We replicate the results of the paper and show that model guidance can be done cost-effectively with sparse and noisy bounding boxes.
+
+<p align="center">
+<img src="./images/paper_fig4.png" width="100%" text-align="center"/>
+</p>
+
+<p align="center">
+<img src="./images/paper_fig6_fig7.png" width="100%" text-align="center"/>
+</p>
+
+**Claim 4: Model guidance can improve model generalization.**
+
+Model guidance with a small number of annotations can improve model generalization under distribution shifts at test time. We replicate the results of the paper and show that model guidance can improve model generalization.
+
+<p align="center">
+<img src="./images/paper_tab3.png" width="100%" text-align="center"/>
+</p>
+
+### Additional experiments and extensions
+
+We conduct additional experiments and analysis to further investigate the main claims of the paper. This additional experiment aims to assess the class specific fairness of models utilizing guidance. While the original work shows improved localization performance for guided models, it is unclear if all categories benefit equally from model guidance
+
+<p align="center">
+<img src="./images/paper_tab5.png" width="100%" text-align="center"/>
+</p>
 
 ---
 ## Acknowledgements
