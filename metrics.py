@@ -177,7 +177,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         # If og image is given plot it in first subplot
         if image is not None:
             self.axs[self.j][0].imshow(torch.movedim(image[:3, :, :], 0, -1).cpu())
-            self.axs[self.j][0].set_title(f"Original Image, class: {pred}")
+            self.axs[self.j][0].set_title(f"Original Image, class: {pred}", fontsize=15)
 
         # Plot attirubtions in first or second plot, depending on if an
         # image is given
@@ -187,7 +187,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
             binarized_attributions.cpu(),
             cmap=dark_red_cmap,
         )
-        self.axs[self.j][i].set_title("Normalized atribution map")
+        self.axs[self.j][i].set_title("Normalized atribution map", fontsize=15)
 
         # histogram, bin_edges = np.histogram(binarized_attributions.cpu())
 
@@ -234,7 +234,7 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
                 cmap=dark_red_cmap,
             )
             self.axs[self.j][i + 1].set_title(
-                f"{method}, Thr: {iou_threshold:.2f}, IoU: {iou:.2f}"
+                f"{method}, Thr: {iou_threshold:.2f}, IoU: {iou:.2f}", fontsize=15
             )
 
         # Add boundingbox to all subplots
@@ -257,8 +257,11 @@ class BoundingBoxIoUMultiple(EnergyPointingGameBase):
         # If amount neede reached stop visualizing
         if self.j >= self.amount_img:
             # Save figure
+            for _ax in self.axs:
+                for ax in _ax:
+                    ax.axes.get_xaxis().set_ticks([])
+                    ax.axes.get_yaxis().set_ticks([])
             self.fig.tight_layout()
-            self.fig.suptitle("Comparision of threshold method for IoU score:")
             plt.savefig("./images/methods_comparions.png")
             self.visualize_flag = False
 

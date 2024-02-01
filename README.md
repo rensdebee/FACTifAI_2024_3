@@ -152,7 +152,7 @@ python train.py --model_backbone bcos --dataset VOC2007 --learning_rate 1e-4 --t
 For example, to optimize B-cos attributions using the Energy loss at the Input layer, use:
 
 ```bash
-python eval.py --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.001_sll1.0_layerInput/model_checkpoint_final_300.pt --log_path ./base_logs/VOC2007/EVAL/ --dataset VOC2007 --fix_layer Input --vis_iou_thr_methods
+python eval.py --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_final_300.pt --log_path ./base_logs/VOC2007/EVAL/ --dataset VOC2007 --fix_layer Input --vis_iou_thr_methods
 ```
 
 ---
