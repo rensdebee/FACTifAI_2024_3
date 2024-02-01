@@ -17,6 +17,7 @@ Effectively Guide Models with Explanations."](https://openaccess.thecvf.com/cont
 * [About the Project](#about-the-project)
 * [Folder Structure](#folder-structure)
 * [Getting Started](#getting-started)
+  * [Hardware Requirements](#hardware-requirements)
   * [Install Packages](#install-packages)
   * [Download the Data](#download-the-data)
   * [ImageNet Pre-trained Weights](#imagenet-pre-trained-weights)
@@ -24,6 +25,10 @@ Effectively Guide Models with Explanations."](https://openaccess.thecvf.com/cont
   * [Training without Model Guidance](#training-without-model-guidance)
   * [Fine-tuning with Model Guidance](#fine-tuning-with-model-guidance)
   * [Evaluating and displaying different IoU thresholds](#evaluating-and-displaying-different-iou-thresholds)
+  * [Evaluating the Paretto Fronts on the test set](#evaluating-the-paretto-fronts-on-the-test-set)
+* [Results](#results)
+  * [Reproducibility study](#reproducibility-study)
+  * [Additional experiments and extensions](#additional-experiments-and-extensions)
 * [Acknowledgements](#acknowledgements)
 
 ## About the Project
