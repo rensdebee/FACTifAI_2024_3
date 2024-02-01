@@ -1,4 +1,15 @@
-# From https://github.com/visinf/fast-axiomatic-attribution/blob/main/imagenet/models/fixup_resnet.py
+"""
+Reproducibility Study of “Studying How to Efficiently and Effectively Guide Models with Explanations”
+
+Description: This file is part of a project aiming to reproduce the study titled "Studying How to Efficiently and 
+Effectively Guide Models with Explanations." The project focuses on verifying the results and methodologies 
+proposed in the original study, and potentially extending or refining the study's findings.
+
+Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
+Based on the code of the paper "Fast Axiomatic Attribution for Neural Networks": https://github.com/visinf/fast-axiomatic-attribution/blob/main/imagenet/models/fixup_resnet.py
+
+fixup_resnet.py
+"""
 
 import torch
 import torch.nn as nn

@@ -9,8 +9,6 @@ Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
 Based on the code of the paper "GALS: Guiding Visual Attention with Language Specification": https://github.com/spetryk/GALS/blob/main/datasets/waterbirds.py
 
 datasets/Waterbirds-100%/preprocess.py
-
-Download the Waterbirds-100% dataset from https://drive.google.com/file/d/1zJpQYGEt1SuwitlNfE06TFyLaWX-st1k/view
 """
 
 import torch
