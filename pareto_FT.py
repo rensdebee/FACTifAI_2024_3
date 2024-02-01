@@ -165,10 +165,15 @@ def pareto_demo(bin_width=0.005,
             mode="bbs",
             vis_flag=False,
         )
+        
+        # first split on _ then get last element and split on . to get epoch number
+        epoch_n = pareto_ch.split("_")[-1].split(".")[0]
 
-        # Save evaluation of pareto checkpoint in tracker
         pareto_front_tracker_EPG.update(
-            model, metric_vals, num_model, sll, epoch=pareto_ch.split("_")[-1]
+            model=model, 
+            metric_dict=metric_vals, 
+            epoch=int(epoch_n), 
+            sll=sll
         )
 
         save_all_path = os.path.join(output_dir, "not_pareto")

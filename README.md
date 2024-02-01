@@ -71,13 +71,17 @@ This study aims to replicate the original paper, and investigates the reproducib
 ├── pareto_dil_lim.py                                 - will hold the code to compute the paretto front of the models trained with the dilated annotations
 ├── pareto_FT.py                                      - will hold the code to compute the paretto front of the models trained on different datasets
 ├── tensorboard_proccessing.py                        - will hold the code to process the tensorboard logs
-├── test_transform.py                                 - will hold the code to transform the test images
 ├── train.py                                          - main script to train the models
 ├── utils.py                                          - defines utility functions
 └── visualize.py                                      - defines functions to visualize the results
 ```
 
 ## Getting Started
+
+### Hardware Requirements
+
+The code was developed and tested on a machine with a NVIDIA A100 40GB GPU. The code should run on any machine with a GPU that has at least 24GB of vram for training and 16GB of vram for evaluation/testing.
+
 ### Install Packages
 
 All required packages can be found in the environment.yml file. They are most easily installed with [conda/miniconda](https://docs.conda.io/en/latest/miniconda.html), where a new environment can be easily created like this: 
@@ -117,6 +121,12 @@ python preprocess.py --split test
 
 A script to download the pre-trained ImageNet weights for B-cos and X-DNN backbones has been provided in the [weights](weights) directory. Store ImageNet pre-trained weights for X-DNN and B-cos models there. To download them, run [weights/download.sh](weigths/download.sh)
 
+## Demo Notebook
+
+A demo notebook that contains code to regenerate all the key reproducibility results that are presented in our paper is included in this repository. It also contains the code to download the datasets and model weights.
+
+Start a `jupyterlab` session using `jupyter lab` and run the notebook [`demo_notebook.ipynb`](demo_notebook.ipynb) to reproduce the results.
+
 ## Training Models
 
 To train a model, use:
@@ -153,6 +163,14 @@ For example, to optimize B-cos attributions using the Energy loss at the Input l
 
 ```bash
 python eval.py --model_path BASE/VOC2007/bcos_standard_attrNone_loclossNone_origNone_resnet50_lr0.0001_sll1.0_layerInput/model_checkpoint_final_300.pt --log_path ./base_logs/VOC2007/EVAL/ --dataset VOC2007 --fix_layer Input --vis_iou_thr_methods
+```
+
+### Evaluating the Paretto Fronts on the test set
+
+For example, to optimize B-cos attributions using the Energy loss at the Input layer, use:
+
+```bash
+python pareto_FT.py --model_path "<path to your directory containing the models>" --log_path "<path to your directory where the logs should be saved>"  --dataset VOC2007 --split test --eval_batch_size 4 --seed 0
 ```
 
 ---

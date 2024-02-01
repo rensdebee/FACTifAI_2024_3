@@ -181,4 +181,7 @@ if __name__ == "__main__":
         # Extract the tar.gz file
         subprocess.run(["tar", "-xzf", "./waterbird_1.0_forest2water2.tar.gz", "-C", "./waterbird_1.0_forest2water2"])
 
+        # Remove the tar.gz file
+        subprocess.run(["rm", "./waterbird_1.0_forest2water2.tar.gz"])
+
     preprocess_waterbirds(args)
