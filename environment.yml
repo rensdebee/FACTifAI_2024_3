@@ -11,7 +11,6 @@ dependencies:
   - pytorch=2.1.0
   - torchvision=0.16.0
   - torchaudio=2.1.0
-  - tensorboard
   - pip:
     - tabulate>=0.8.9
     - tqdm>=4.62.3
@@ -28,3 +27,4 @@ dependencies:
     - pandas
     - gdown
     - typing
+    - tensorboard
