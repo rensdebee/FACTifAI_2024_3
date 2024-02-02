@@ -319,18 +319,19 @@ def main(args):
     torch.save(dataset, os.path.join(args.save_path, split + "_segment.pt"))
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--data_root", type=str, default=".")
-parser.add_argument(
-    "--split",
-    type=str,
-    choices=["train", "val", "test", "trainval", "all"],
-    required=True,
-)
-parser.add_argument("--save_path", type=str, default="processed/")
-parser.add_argument("--show_img", type=bool, default=False)
-parser.add_argument("--img_amount", type=int, default=10)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", type=str, default=".")
+    parser.add_argument(
+        "--split",
+        type=str,
+        choices=["train", "val", "test", "trainval", "all"],
+        required=True,
+    )
+    parser.add_argument("--save_path", type=str, default="processed/")
+    parser.add_argument("--show_img", type=bool, default=False)
+    parser.add_argument("--img_amount", type=int, default=10)
 
 
-args = parser.parse_args()
-main(args)
+    args = parser.parse_args()
+    main(args)
