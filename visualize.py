@@ -8,6 +8,7 @@ proposed in the original study, and potentially extending or refining the study'
 Based on the code of orginal paper: https://github.com/sukrutrao/Model-Guidance
 
 visualize.py
+! Note we commented out the font family since it does not come standard on linux !
 """
 
 import torch
@@ -80,13 +81,13 @@ def visualize_fig9(
             "Input",
             fontsize=45,
             pad=20,
-            fontname="Times New Roman",
+            # fontname="Times New Roman",
             fontweight=650,
         )
         axs[i][0].set_ylabel(
             class_name,
             fontsize=45,
-            fontname="Times New Roman",
+            # fontname="Times New Roman",
             fontweight=650,
         )
 
@@ -111,7 +112,6 @@ def visualize_fig9(
                 layer,
                 attribution_method,
             ) = utils.get_model_specs(path)
-            print(i, model_backbone, localization_loss_fn)
             # If no attribution method set default values
             if not attribution_method:
                 if model_backbone == "bcos":
@@ -186,7 +186,7 @@ def visualize_fig9(
                     localization_loss_fn,
                     pad=20,
                     fontsize=45,
-                    fontname="Times New Roman",
+                    # fontname="Times New Roman",
                     fontweight=650,
                 )
 
@@ -307,7 +307,7 @@ def visualize_fig2(
         ax.set_title(
             class_name,
             fontsize=45,
-            fontname="Times New Roman",
+            # fontname="Times New Roman",
             pad=20,
             fontweight=650,
         )
@@ -414,7 +414,7 @@ def visualize_fig2(
                     axs[row_idx][img_idx].set_ylabel(
                         f"{model_name} \n {model_mode}",
                         fontsize=45,
-                        fontname="Times New Roman",
+                        # fontname="Times New Roman",
                     )
 
     # Remove plot ticks
@@ -490,7 +490,7 @@ def visualize_fig13(base_model_pth, ft_energy_path, ft_l1_path, last=True):
         ax.set_title(
             class_name,
             fontsize=20,
-            fontname="Times New Roman",
+            # fontname="Times New Roman",
         )
 
         # Plot boundingboxes
@@ -582,7 +582,7 @@ def visualize_fig13(base_model_pth, ft_energy_path, ft_l1_path, last=True):
             axs[img_idx][i].set_title(
                 f"{model_names[i-1]}",
                 fontsize=20,
-                fontname="Times New Roman",
+                # fontname="Times New Roman",
             )
             pred_clas = int(logits[img_idx].argmax().item())
             confidence = logits[img_idx][pred_clas].sigmoid().item() * 100
@@ -590,7 +590,7 @@ def visualize_fig13(base_model_pth, ft_energy_path, ft_l1_path, last=True):
             axs[img_idx][i].set_xlabel(
                 f"{pred_clas_name}\nConf.:{confidence:.0f}%",
                 fontsize=20,
-                fontname="Times New Roman",
+                # fontname="Times New Roman",
             )
 
     # Remove plot ticks
@@ -689,13 +689,13 @@ def visualize_fig11(
             axd[letter + i].set_title(
                 titles[j],
                 fontsize=20,
-                fontname="Times New Roman",
+                # fontname="Times New Roman",
             )
             if letter == "A":
                 axd[letter + i].set_ylabel(
                     class_name,
                     fontsize=20,
-                    fontname="Times New Roman",
+                    # fontname="Times New Roman",
                 )
             if letter != "C":
                 if letter == "A":
@@ -789,7 +789,7 @@ def visualize_fig11(
                 axd[letter + img_idx].set_ylabel(
                     loss_fn,
                     fontsize=20,
-                    fontname="Times New Roman",
+                    # fontname="Times New Roman",
                 )
             # Plot boundingbox
             for coords in bb:
