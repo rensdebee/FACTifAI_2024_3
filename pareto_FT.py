@@ -209,10 +209,12 @@ def pareto_demo(bin_width=0.005,
             sll=sll,
         )
 
-
-    os.makedirs(output_dir, exist_ok=True)
+    pareto_path = os.path.join(output_dir, "pareto")
+    
+    os.makedirs(pareto_path, exist_ok=True)
+    
     # Create and save pareto front out of all evaluated checkpoint in the tracker
-    pareto_front_tracker_EPG.save_pareto_front(output_dir, npz=True)
+    pareto_front_tracker_EPG.save_pareto_front(pareto_path, npz=True)
 
 def main(args):
     bin_width = 0.005
